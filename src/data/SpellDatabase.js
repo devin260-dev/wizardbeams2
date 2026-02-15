@@ -1,0 +1,101 @@
+import { BALANCE } from './BalanceConfig.js';
+
+export const SPELLS = {
+  grey_bolt: {
+    id: 'grey_bolt',
+    name: 'Grey Bolt',
+    element: '',
+    school: 'neutral',
+    is_projectile: true,
+    node_effect: 'damaged',
+    mana_cost: BALANCE.spells.grey_bolt.mana_cost,
+    cooldown: BALANCE.spells.grey_bolt.cooldown,
+    travel_speed: BALANCE.spells.grey_bolt.travel_speed,
+    hp_damage: BALANCE.spells.grey_bolt.hp_damage,
+    targeting: 'single_node',
+  },
+
+  shield: {
+    id: 'shield',
+    name: 'Shield',
+    element: '',
+    school: 'neutral',
+    is_projectile: false,
+    node_effect: null,
+    mana_cost: BALANCE.spells.shield.mana_cost,
+    cooldown: 0,
+    travel_speed: 0,
+    hp_damage: 0,
+    targeting: 'toggle',
+  },
+
+  fireball: {
+    id: 'fireball',
+    name: 'Fireball',
+    element: 'fire',
+    school: 'pure',
+    is_projectile: true,
+    node_effect: 'damaged',
+    mana_cost: BALANCE.spells.fireball.mana_cost,
+    cooldown: BALANCE.spells.fireball.cooldown,
+    travel_speed: BALANCE.spells.fireball.travel_speed,
+    hp_damage: BALANCE.spells.fireball.hp_damage_per_node,
+    targeting: 'aoe_circle',
+    radius: BALANCE.spells.fireball.radius,
+  },
+
+  earth_barrage: {
+    id: 'earth_barrage',
+    name: 'Earth Barrage',
+    element: 'earth',
+    school: 'pure',
+    is_projectile: true,
+    node_effect: 'damaged',
+    mana_cost: BALANCE.spells.earth_barrage.mana_cost,
+    cooldown: BALANCE.spells.earth_barrage.cooldown,
+    travel_speed: BALANCE.spells.earth_barrage.travel_speed,
+    hp_damage: BALANCE.spells.earth_barrage.hp_damage_per_rock,
+    targeting: 'single_node',
+    rock_count: BALANCE.spells.earth_barrage.rock_count,
+    hit_chance: BALANCE.spells.earth_barrage.hit_chance,
+    stagger_delay: BALANCE.spells.earth_barrage.stagger_delay,
+  },
+
+  air_choke: {
+    id: 'air_choke',
+    name: 'Air Choke',
+    element: 'air',
+    school: 'pure',
+    is_projectile: false,
+    node_effect: 'dormant',
+    mana_cost: BALANCE.spells.air_choke.mana_cost,
+    cooldown: BALANCE.spells.air_choke.cooldown,
+    travel_speed: 0,
+    hp_damage: 0,
+    targeting: 'immediate',
+    stability_drain: BALANCE.spells.air_choke.stability_drain,
+    stability_drain_duration: BALANCE.spells.air_choke.stability_drain_duration,
+    affected_nodes: ['crown', 'third_eye', 'throat'],
+  },
+
+  water_beam: {
+    id: 'water_beam',
+    name: 'Water Beam',
+    element: 'water',
+    school: 'pure',
+    is_projectile: false,
+    node_effect: 'dormant',
+    mana_cost: BALANCE.spells.water_beam.mana_cost,
+    cooldown: BALANCE.spells.water_beam.cooldown,
+    travel_speed: 0,
+    hp_damage: 0,
+    targeting: 'single_node',
+    flood_count: BALANCE.spells.water_beam.flood_count,
+    stability_drain: BALANCE.spells.water_beam.stability_drain,
+    stability_drain_duration: BALANCE.spells.water_beam.stability_drain_duration,
+  },
+};
+
+export function getSpell(id) {
+  return SPELLS[id] || null;
+}

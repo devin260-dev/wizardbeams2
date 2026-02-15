@@ -1,0 +1,213 @@
+export const BALANCE = {
+  beam: {
+    collision_start: 50.0,
+    push_rate: 2.0,
+    beam_min_thickness: 4.0,
+    beam_max_thickness: 22.0,
+    max_mana: 11,
+  },
+
+  school: {
+    counter_debuff: 3.0,
+    counter_debuff_max: 6.0,
+    colors: {
+      order: { r: 0.5, g: 0.0, b: 0.8, hex: '#8000cc' },
+      chaos: { r: 1.0, g: 0.9, b: 0.0, hex: '#ffe600' },
+      pure: { r: 1.0, g: 0.3, b: 0.0, hex: '#ff4d00' },
+      neutral: { r: 0.5, g: 0.5, b: 0.5, hex: '#808080' },
+    },
+    // RPS: order beats chaos, chaos beats pure, pure beats order
+    counter_map: {
+      order: 'chaos',   // order beats chaos
+      chaos: 'pure',    // chaos beats pure
+      pure: 'order',    // pure beats order
+    },
+  },
+
+  beam_switch: {
+    charge_time: 2.0,
+    lock_time: 5.0,
+    neutral_lock_time: 2.0,
+    neutral_voluntary_stability: 10.0,
+    neutral_forced_stability: 40.0,
+  },
+
+  element: {
+    push_multiplier: 1.2,
+    spell_stability_base: 10.0,
+    spell_stability_counter: 40.0,
+    shift_delay: 2.0,
+    // RPS: fire > earth > air > water > fire
+    counter_map: {
+      fire: 'earth',
+      earth: 'air',
+      air: 'water',
+      water: 'fire',
+    },
+    colors: {
+      fire: '#ff4400',
+      water: '#0088ff',
+      earth: '#8b5e3c',
+      air: '#eeeeff',
+    },
+  },
+
+  stability: {
+    drain_rate: 25.0,
+    regen_rate: 25.0,
+    max: 100.0,
+  },
+
+  shield: {
+    mana_cost: 1.0,
+    recharge_time: 3.0,
+  },
+
+  channeling: {
+    max_channeled_spells: 2,
+    channel_time: 1.5,
+    unchannel_time: 0.0,
+  },
+
+  nodes: {
+    activation_time: 2.0,
+    repair_time: 3.0,
+    awareness_travel_time: 300, // ms between adjacent nodes
+    click_radius: 12,
+  },
+
+  spells: {
+    grey_bolt: {
+      mana_cost: 1.0,
+      hp_damage: 3,
+      cooldown: 5.0,
+      travel_speed: 300.0,
+    },
+    shield: {
+      mana_cost: 1.0,
+      recharge_time: 3.0,
+    },
+    fireball: {
+      radius: 40.0,
+      mana_cost: 2.0,
+      hp_damage_per_node: 3,
+      cooldown: 15.0,
+      travel_speed: 200.0,
+    },
+    earth_barrage: {
+      rock_count: 4,
+      hit_chance: 0.5,
+      mana_cost: 2.0,
+      hp_damage_per_rock: 3,
+      cooldown: 12.0,
+      travel_speed: 250.0,
+      stagger_delay: 0.1,
+    },
+    air_choke: {
+      mana_cost: 2.0,
+      cooldown: 15.0,
+      stability_drain: 50.0,
+      stability_drain_duration: 3.0,
+    },
+    water_beam: {
+      mana_cost: 2.0,
+      cooldown: 15.0,
+      flood_count: 2,
+      stability_drain: 40.0,
+      stability_drain_duration: 3.0,
+    },
+  },
+
+  hp: {
+    starting_max: 30,
+  },
+
+  floors: {
+    awareness_speed: 100,       // ms minimum
+    activation_speed: 0.5,      // seconds minimum
+    shield_recharge: 1.0,       // seconds minimum
+    beam_switch: 0.5,           // seconds minimum
+    spell_cooldown_reduction: 0.5, // 50% max reduction
+    node_repair: 1.0,           // seconds minimum
+  },
+
+  passives: {
+    awareness_speed_bonus: -50.0,
+    activation_speed_bonus: -0.25,
+    shield_recharge_bonus: -0.5,
+    beam_switch_bonus: -0.5,
+    spell_cooldown_bonus: -10.0,
+    node_repair_bonus: -0.5,
+  },
+
+  gem: {
+    price: 15,
+  },
+
+  meta: {
+    tier_count: 3,
+    nodes_per_tier_min: 4,
+    nodes_per_tier_max: 6,
+    elites_per_tier: 1,
+    rest_site_heal_percent: 0.3,
+    gold_reward: { 1: 10, 2: 15, 3: 20 },
+    post_combat_gem_offering_count: 3,
+  },
+
+  enemy: {
+    grey_bolt_interval: 8.0,
+    ai_decision_interval: 1.0,
+    // Tier-dependent stats
+    tiers: {
+      1: {
+        hp: 20,
+        awareness_speed: 400,
+        beam_types_unlocked: 1,
+        reaction_time: 2.0,
+        has_shield: false,
+        gem_count: 1,
+        decision_delay: 1.5,
+      },
+      2: {
+        hp: 25,
+        awareness_speed: 350,
+        beam_types_unlocked: 2,
+        reaction_time: 1.5,
+        has_shield: true,
+        gem_count: 3,
+        decision_delay: 1.0,
+      },
+      3: {
+        hp: 30,
+        awareness_speed: 300,
+        beam_types_unlocked: 3,
+        reaction_time: 1.0,
+        has_shield: true,
+        gem_count: 5,
+        decision_delay: 0.5,
+      },
+    },
+    elite: {
+      hp_bonus: 10,
+      awareness_speed_bonus: -50,
+      extra_gems: 1,
+    },
+    boss: {
+      hp: 40,
+      awareness_speed: 250,
+      beam_types_unlocked: 3,
+      reaction_time: 0.5,
+      has_shield: true,
+      gem_count: 6,
+      decision_delay: 0.3,
+      all_nodes_open: true,
+    },
+  },
+
+  wizard: {
+    player_position: { x: 86, y: 236 },
+    enemy_position: { x: 874, y: 236 },
+    staff_tip_offset: { x: 44, y: -38 },
+    beam_y_offset: -65,
+  },
+};
