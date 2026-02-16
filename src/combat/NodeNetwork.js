@@ -8,24 +8,31 @@ const NODE_TYPE = {
   PATHWAY: 'pathway',
 };
 
-// Node definitions with positions (from GDD)
+// Node definitions with positions (scaled 1.4x from center for spacing)
+// Center of network: x=98, y=416
+const NODE_CX = 98;
+const NODE_CY = 416;
+const NODE_SCALE = 1.4;
+function _np(x, y) {
+  return { x: Math.round(NODE_CX + (x - NODE_CX) * NODE_SCALE), y: Math.round(NODE_CY + (y - NODE_CY) * NODE_SCALE) };
+}
 const NODE_DEFS = {
   // Gem slot nodes
-  crown:           { x: 98,  y: 358, type: NODE_TYPE.GEM_SLOT },
-  third_eye:       { x: 98,  y: 374, type: NODE_TYPE.GEM_SLOT },
-  throat:          { x: 98,  y: 396, type: NODE_TYPE.GEM_SLOT },
-  left_shoulder:   { x: 121, y: 412, type: NODE_TYPE.GEM_SLOT },
-  right_shoulder:  { x: 72,  y: 412, type: NODE_TYPE.GEM_SLOT },
-  left_root:       { x: 123, y: 475, type: NODE_TYPE.GEM_SLOT },
-  right_root:      { x: 70,  y: 475, type: NODE_TYPE.GEM_SLOT },
+  crown:           { ..._np(98, 358),  type: NODE_TYPE.GEM_SLOT },
+  third_eye:       { ..._np(98, 374),  type: NODE_TYPE.GEM_SLOT },
+  throat:          { ..._np(98, 396),  type: NODE_TYPE.GEM_SLOT },
+  left_shoulder:   { ..._np(121, 412), type: NODE_TYPE.GEM_SLOT },
+  right_shoulder:  { ..._np(72, 412),  type: NODE_TYPE.GEM_SLOT },
+  left_root:       { ..._np(123, 475), type: NODE_TYPE.GEM_SLOT },
+  right_root:      { ..._np(70, 475),  type: NODE_TYPE.GEM_SLOT },
   // Beam type nodes
-  belly:           { x: 98,  y: 446, type: NODE_TYPE.BEAM_TYPE, beam_school: 'pure' },
-  left_hand:       { x: 150, y: 472, type: NODE_TYPE.BEAM_TYPE, beam_school: 'chaos' },
-  right_hand:      { x: 44,  y: 472, type: NODE_TYPE.BEAM_TYPE, beam_school: 'order' },
+  belly:           { ..._np(98, 446),  type: NODE_TYPE.BEAM_TYPE, beam_school: 'pure' },
+  left_hand:       { ..._np(150, 472), type: NODE_TYPE.BEAM_TYPE, beam_school: 'chaos' },
+  right_hand:      { ..._np(44, 472),  type: NODE_TYPE.BEAM_TYPE, beam_school: 'order' },
   // Pathway nodes
-  sternum:         { x: 98,  y: 412, type: NODE_TYPE.PATHWAY },
-  left_elbow:      { x: 130, y: 447, type: NODE_TYPE.PATHWAY },
-  right_elbow:     { x: 63,  y: 447, type: NODE_TYPE.PATHWAY },
+  sternum:         { ..._np(98, 412),  type: NODE_TYPE.PATHWAY },
+  left_elbow:      { ..._np(130, 447), type: NODE_TYPE.PATHWAY },
+  right_elbow:     { ..._np(63, 447),  type: NODE_TYPE.PATHWAY },
 };
 
 // Adjacency list
@@ -91,6 +98,9 @@ export class NodeNetwork {
     this.awarenessSpeed = BALANCE.nodes.awareness_travel_time; // ms per hop
     this.isRepairing = false;
     this.repairTimer = 0;
+
+    // Multiplier for activation/repair time (used for enemy slowdown)
+    this.activationTimeMultiplier = 1.0;
 
     // Passive bonuses accumulated from gems
     this.passiveBonuses = {};
@@ -163,12 +173,14 @@ export class NodeNetwork {
 
   getEffectiveActivationTime() {
     const bonus = this.getPassiveBonus('activation_speed');
-    return Math.max(BALANCE.floors.activation_speed, BALANCE.nodes.activation_time + bonus);
+    const base = (BALANCE.nodes.activation_time + bonus) * this.activationTimeMultiplier;
+    return Math.max(BALANCE.floors.activation_speed, base);
   }
 
   getEffectiveRepairTime() {
     const bonus = this.getPassiveBonus('node_repair');
-    return Math.max(BALANCE.floors.node_repair, BALANCE.nodes.repair_time + bonus);
+    const base = (BALANCE.nodes.repair_time + bonus) * this.activationTimeMultiplier;
+    return Math.max(BALANCE.floors.node_repair, base);
   }
 
   // State queries

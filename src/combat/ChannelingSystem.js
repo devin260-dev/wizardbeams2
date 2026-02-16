@@ -123,6 +123,12 @@ export class ChannelingSystem {
     return this.pendingChannels.some(p => p.gemId === gemId);
   }
 
+  getChannelProgress(gemId) {
+    const pending = this.pendingChannels.find(p => p.gemId === gemId);
+    if (!pending) return null;
+    return { remaining: pending.timer, total: BALANCE.channeling.channel_time };
+  }
+
   update(dt) {
     // Process pending channels
     for (let i = this.pendingChannels.length - 1; i >= 0; i--) {

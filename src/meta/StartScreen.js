@@ -1,6 +1,7 @@
 import { Button } from '../rendering/UIComponents.js';
 import { RunState } from './RunState.js';
 import { generateMap } from './MapGenerator.js';
+import { generateEnemy } from '../data/EnemyDatabase.js';
 import { BALANCE } from '../data/BalanceConfig.js';
 import { GEM_SLOT_NODES } from '../combat/NodeNetwork.js';
 
@@ -30,6 +31,7 @@ export class StartScreen {
     };
 
     this.beginButton = new Button(380, 430, 200, 50, 'Begin Run', { color: '#224422', hoverColor: '#33aa33', fontSize: 20 });
+    this.devDuelButton = new Button(380, 490, 200, 36, 'Dev Duel', { color: '#443322', hoverColor: '#886644', fontSize: 16 });
   }
 
   enter() {
@@ -46,6 +48,7 @@ export class StartScreen {
     for (const btn of Object.values(this.elementButtons)) btn.updateHover(mouse.x, mouse.y);
     this.beginButton.updateHover(mouse.x, mouse.y);
     this.beginButton.disabled = !this.selectedSchool || !this.selectedElement;
+    this.devDuelButton.updateHover(mouse.x, mouse.y);
 
     if (!this.input.wasClicked()) return;
     const click = this.input.getClickPos();
@@ -66,6 +69,11 @@ export class StartScreen {
 
     if (this.beginButton.isClicked(click.x, click.y)) {
       this._startRun();
+      return;
+    }
+
+    if (this.devDuelButton.isClicked(click.x, click.y)) {
+      this._startDevDuel();
     }
   }
 
@@ -85,6 +93,25 @@ export class StartScreen {
     runState.current_node_id = mapData.startNodeId;
 
     this.sceneManager.changeScene('map', { runState });
+  }
+
+  _startDevDuel() {
+    const school = this.selectedSchool || 'pure';
+    const element = this.selectedElement || 'fire';
+
+    const runState = new RunState();
+    runState.startNewRun(school, element);
+
+    // Auto-slot starting gems
+    const slots = GEM_SLOT_NODES;
+    for (let i = 0; i < runState.gems.length && i < slots.length; i++) {
+      runState.slotGem(runState.gems[i].id, slots[i]);
+    }
+
+    // Generate a tier 1 enemy and go straight to combat
+    const enemyData = generateEnemy(1, false, false);
+
+    this.sceneManager.changeScene('combat', { runState, enemyData, devMode: true });
   }
 
   render(ctx) {
@@ -119,5 +146,7 @@ export class StartScreen {
     }
 
     this.beginButton.render(r);
+    this.devDuelButton.render(r);
+    r.drawText('(skip to combat)', 480, 520, '#666', 11, 'center');
   }
 }

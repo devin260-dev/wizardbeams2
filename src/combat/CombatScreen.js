@@ -47,6 +47,7 @@ export class CombatScreen {
   enter(data) {
     this.runState = data.runState;
     this.enemyData = data.enemyData;
+    this.devMode = data.devMode || false;
 
     // Create combat state
     this.combatState = new CombatState();
@@ -72,6 +73,9 @@ export class CombatScreen {
 
     if (this.enemyData.awareness_speed) {
       this.enemyNetwork.awarenessSpeed = this.enemyData.awareness_speed;
+    }
+    if (this.enemyData.activation_time_multiplier) {
+      this.enemyNetwork.activationTimeMultiplier = this.enemyData.activation_time_multiplier;
     }
 
     // Create node renderers
@@ -263,6 +267,11 @@ export class CombatScreen {
   _endCombat() {
     // Update RunState with combat results
     this.runState.hp = Math.max(0, this.combatState.player.hp);
+
+    if (this.devMode) {
+      this.sceneManager.changeScene('start');
+      return;
+    }
 
     if (this.combatState.combat_result === 'player_win') {
       // Award gold

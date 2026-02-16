@@ -1,7 +1,7 @@
 export const BALANCE = {
   beam: {
     collision_start: 50.0,
-    push_rate: 2.0,
+    push_rate: 1.0,
     beam_min_thickness: 4.0,
     beam_max_thickness: 22.0,
     max_mana: 11,
@@ -25,7 +25,7 @@ export const BALANCE = {
   },
 
   beam_switch: {
-    charge_time: 2.0,
+    charge_time: 0.0,
     lock_time: 5.0,
     neutral_lock_time: 2.0,
     neutral_voluntary_stability: 10.0,
@@ -53,7 +53,7 @@ export const BALANCE = {
   },
 
   stability: {
-    drain_rate: 25.0,
+    drain_rate: 12.5,
     regen_rate: 25.0,
     max: 100.0,
   },
@@ -73,7 +73,7 @@ export const BALANCE = {
     activation_time: 2.0,
     repair_time: 3.0,
     awareness_travel_time: 300, // ms between adjacent nodes
-    click_radius: 12,
+    click_radius: 15,
   },
 
   spells: {
@@ -155,52 +155,56 @@ export const BALANCE = {
   },
 
   enemy: {
-    grey_bolt_interval: 8.0,
+    grey_bolt_interval: 12.0,
     ai_decision_interval: 1.0,
     // Tier-dependent stats
     tiers: {
       1: {
         hp: 20,
-        awareness_speed: 400,
+        awareness_speed: 1350,
         beam_types_unlocked: 1,
         reaction_time: 2.0,
         has_shield: false,
         gem_count: 1,
         decision_delay: 1.5,
+        activation_time_multiplier: 2.25,
       },
       2: {
         hp: 25,
-        awareness_speed: 350,
+        awareness_speed: 1200,
         beam_types_unlocked: 2,
         reaction_time: 1.5,
         has_shield: true,
         gem_count: 3,
         decision_delay: 1.0,
+        activation_time_multiplier: 2.25,
       },
       3: {
         hp: 30,
-        awareness_speed: 300,
+        awareness_speed: 1050,
         beam_types_unlocked: 3,
         reaction_time: 1.0,
         has_shield: true,
         gem_count: 5,
         decision_delay: 0.5,
+        activation_time_multiplier: 2.25,
       },
     },
     elite: {
       hp_bonus: 10,
-      awareness_speed_bonus: -50,
+      awareness_speed_bonus: -112,
       extra_gems: 1,
     },
     boss: {
       hp: 40,
-      awareness_speed: 250,
+      awareness_speed: 825,
       beam_types_unlocked: 3,
       reaction_time: 0.5,
       has_shield: true,
       gem_count: 6,
       decision_delay: 0.3,
       all_nodes_open: true,
+      activation_time_multiplier: 2.25,
     },
   },
 

@@ -211,21 +211,26 @@ export class CombatAI {
   }
 
   _pickGreyBoltTarget() {
-    // Weighted random from player nodes
+    const tier = this.enemyData.tier || 1;
     const candidates = [];
-    for (const [id, node] of Object.entries(this.playerNetwork.nodes)) {
-      if (node.state === NodeState.DAMAGED) continue; // Already damaged
 
+    for (const [id, node] of Object.entries(this.playerNetwork.nodes)) {
+      if (node.state === NodeState.DAMAGED) continue;
+      if (node.state !== NodeState.OPEN && node.state !== NodeState.CHANNELED) continue;
+
+      // Tier 1: pure random targeting (all nodes equal)
+      // Tier 2+: weighted toward high-value targets
       let weight = 1;
-      if (GEM_SLOT_NODES.includes(id) && node.gem && node.gem.spell_id) {
-        weight = 3; // Spell gem nodes
-      } else if (BEAM_TYPE_NODES.includes(id)) {
-        weight = 2; // Beam type nodes
-      }
-      if (node.state === NodeState.OPEN || node.state === NodeState.CHANNELED) {
-        for (let i = 0; i < weight; i++) {
-          candidates.push(id);
+      if (tier >= 2) {
+        if (GEM_SLOT_NODES.includes(id) && node.gem && node.gem.spell_id) {
+          weight = tier; // Higher tiers focus spell gems more
+        } else if (BEAM_TYPE_NODES.includes(id)) {
+          weight = tier >= 3 ? 2 : 1;
         }
+      }
+
+      for (let i = 0; i < weight; i++) {
+        candidates.push(id);
       }
     }
 

@@ -75,6 +75,7 @@ export function generateEnemy(tier, isElite = false, isBoss = false) {
     gem_slots,
     decision_delay: tierData.decision_delay,
     all_nodes_open: tierData.all_nodes_open || false,
+    activation_time_multiplier: tierData.activation_time_multiplier || 1.0,
     is_elite: isElite,
     is_boss: isBoss,
     tier,

@@ -17,19 +17,19 @@ export class CombatHUD {
     this.spellCaster = spellCaster;
     this.shield = shieldSystem;
 
-    // Beam type buttons
+    // Beam type buttons — Order, Pure, Chaos across top; Neutral beneath
     this.beamButtons = {
-      order: new Button(340, 500, 65, 24, 'Order', { color: '#3a0066', hoverColor: '#5500aa' }),
-      chaos: new Button(410, 500, 65, 24, 'Chaos', { color: '#665500', hoverColor: '#aa8800' }),
-      pure: new Button(480, 500, 65, 24, 'Pure', { color: '#662200', hoverColor: '#aa3300' }),
-      neutral: new Button(550, 500, 65, 24, 'Neutral', { color: '#444', hoverColor: '#666' }),
+      order: new Button(370, 494, 65, 24, 'Order', { color: '#3a0066', hoverColor: '#5500aa' }),
+      pure: new Button(440, 494, 65, 24, 'Pure', { color: '#662200', hoverColor: '#aa3300' }),
+      chaos: new Button(510, 494, 65, 24, 'Chaos', { color: '#665500', hoverColor: '#aa8800' }),
+      neutral: new Button(440, 520, 65, 24, 'Neutral', { color: '#444', hoverColor: '#666' }),
     };
-
-    // Shield button
-    this.shieldButton = new Button(625, 500, 65, 24, 'Shield', { color: '#005566', hoverColor: '#0088aa' });
 
     // Spell buttons will be generated dynamically
     this.spellButtons = [];
+
+    // Auto-channel toggle state, persisted across _buildSpellButtons rebuilds
+    this.autoChannelFlags = new Map(); // gemId → boolean
 
     // HP bars
     this.playerHpBar = new PipBar(10, 10, 6, 14, BALANCE.hp.starting_max, { fgColor: '#cc0000', bgColor: '#440000' });
@@ -47,24 +47,24 @@ export class CombatHUD {
   _buildSpellButtons() {
     this.spellButtons = [];
     const playerNodes = this.playerNetwork.nodes;
-    let btnX = 10;
-    const btnY = 470;
+    const btnX = 216;
+    let btnY = 350;
 
     for (const [nodeId, node] of Object.entries(playerNodes)) {
       if (!node.gem || !node.gem.spell_id) continue;
-      if (node.gem.spell_id === 'shield') continue; // Shield has its own button
 
       const spell = getSpell(node.gem.spell_id);
       if (!spell) continue;
 
-      const btn = new Button(btnX, btnY, 80, 22, spell.name, {
+      const btn = new Button(btnX, btnY, 90, 22, spell.name, {
         color: '#333', hoverColor: '#555', fontSize: 11,
       });
       btn._gemId = node.gem.id;
       btn._nodeId = nodeId;
       btn._spellId = node.gem.spell_id;
+      btn._autoChannel = this.autoChannelFlags.get(node.gem.id) || false;
       this.spellButtons.push(btn);
-      btnX += 85;
+      btnY += 26;
     }
   }
 
@@ -78,9 +78,22 @@ export class CombatHUD {
     for (const [school, btn] of Object.entries(this.beamButtons)) {
       btn.updateHover(mouse.x, mouse.y);
     }
-    this.shieldButton.updateHover(mouse.x, mouse.y);
     for (const btn of this.spellButtons) {
       btn.updateHover(mouse.x, mouse.y);
+    }
+
+    // Beam switch hotkeys: Q=Order, W=Pure, E=Chaos, S=Neutral
+    if (this.input.wasKeyPressed('q') || this.input.wasKeyPressed('Q')) {
+      this.beamSwitcher.requestSwitch('order');
+    }
+    if (this.input.wasKeyPressed('w') || this.input.wasKeyPressed('W')) {
+      this.beamSwitcher.requestSwitch('pure');
+    }
+    if (this.input.wasKeyPressed('e') || this.input.wasKeyPressed('E')) {
+      this.beamSwitcher.requestSwitch('chaos');
+    }
+    if (this.input.wasKeyPressed('s') || this.input.wasKeyPressed('S')) {
+      this.beamSwitcher.requestSwitch('neutral');
     }
 
     if (!clicked) return;
@@ -118,10 +131,16 @@ export class CombatHUD {
       }
     }
 
-    // Shield button
-    if (this.shieldButton.isClicked(clickPos.x, clickPos.y)) {
-      this.shield.toggleShield();
-      return;
+    // Auto-channel checkboxes
+    for (const btn of this.spellButtons) {
+      const cbX = btn.x - 16;
+      const cbY = btn.y + 5;
+      if (clickPos.x >= cbX && clickPos.x <= cbX + 12 &&
+          clickPos.y >= cbY && clickPos.y <= cbY + 12) {
+        btn._autoChannel = !btn._autoChannel;
+        this.autoChannelFlags.set(btn._gemId, btn._autoChannel);
+        return;
+      }
     }
 
     // Spell buttons
@@ -137,12 +156,16 @@ export class CombatHUD {
           // Cast or enter targeting
           const spell = getSpell(btn._spellId);
           if (!spell) continue;
-          if (this.spellCaster.isOnCooldown(btn._spellId, 'player')) continue;
 
-          if (spell.targeting === 'single_node' || spell.targeting === 'aoe_circle') {
-            this.spellCaster.enterTargeting(btn._spellId, 'player');
-          } else if (spell.targeting === 'immediate') {
-            this.spellCaster.castSpell(btn._spellId, {}, 'player');
+          if (spell.targeting === 'toggle') {
+            this.shield.toggleShield();
+          } else {
+            if (this.spellCaster.isOnCooldown(btn._spellId, 'player')) continue;
+            if (spell.targeting === 'single_node' || spell.targeting === 'aoe_circle') {
+              this.spellCaster.enterTargeting(btn._spellId, 'player');
+            } else if (spell.targeting === 'immediate') {
+              this.spellCaster.castSpell(btn._spellId, {}, 'player');
+            }
           }
         }
         return;
@@ -160,6 +183,18 @@ export class CombatHUD {
   update(dt) {
     this._buildSpellButtons();
     this._updateButtonStates();
+
+    // Auto-channel logic
+    for (const btn of this.spellButtons) {
+      if (!btn._autoChannel) continue;
+      const node = this.playerNetwork.getNode(btn._nodeId);
+      if (!node || node.state !== NodeState.OPEN) continue;
+      if (!node.gem || !node.gem.spell_id) continue;
+      if (this.channeling.isGemChanneled(btn._gemId)) continue;
+      if (this.channeling.isPendingChannel(btn._gemId)) continue;
+      if (this.state.player.channeled_gems.length >= BALANCE.channeling.max_channeled_spells) continue;
+      this.channeling.requestChannel(btn._gemId);
+    }
   }
 
   _updateButtonStates() {
@@ -177,12 +212,7 @@ export class CombatHUD {
       }
     }
 
-    // Shield button
-    this.shieldButton.disabled = ps.shield_state === 'unavailable';
-    this.shieldButton.text = ps.shield_state === 'up' ? 'Shield ON' :
-      ps.shield_state === 'recharging' ? 'Recharge' : 'Shield';
-
-    // Spell buttons
+    // Spell buttons (includes shield)
     for (const btn of this.spellButtons) {
       const node = this.playerNetwork.getNode(btn._nodeId);
       if (!node) { btn.disabled = true; continue; }
@@ -193,12 +223,19 @@ export class CombatHUD {
         btn.text = 'CH: ' + getSpell(node.gem.spell_id)?.name;
         btn.color = '#335';
       } else if (node.state === NodeState.CHANNELED) {
-        const onCd = this.spellCaster.isOnCooldown(btn._spellId, 'player');
-        btn.disabled = onCd;
-        btn.text = onCd ?
-          `${getSpell(btn._spellId)?.name} (${Math.ceil(this.spellCaster.getCooldownRemaining(btn._spellId, 'player'))}s)` :
-          getSpell(btn._spellId)?.name;
-        btn.color = '#553';
+        if (btn._spellId === 'shield') {
+          btn.disabled = false;
+          btn.text = ps.shield_state === 'up' ? 'Shield ON' :
+            ps.shield_state === 'recharging' ? 'Recharge' : 'Shield';
+          btn.color = '#055';
+        } else {
+          const onCd = this.spellCaster.isOnCooldown(btn._spellId, 'player');
+          btn.disabled = onCd;
+          btn.text = onCd ?
+            `${getSpell(btn._spellId)?.name} (${Math.ceil(this.spellCaster.getCooldownRemaining(btn._spellId, 'player'))}s)` :
+            getSpell(btn._spellId)?.name;
+          btn.color = '#553';
+        }
       } else {
         btn.disabled = true;
         btn.text = getSpell(btn._spellId)?.name || '???';
@@ -269,12 +306,31 @@ export class CombatHUD {
       btn.render(renderer);
     }
 
-    // Shield button
-    this.shieldButton.render(renderer);
-
-    // Spell buttons
+    // Spell buttons with auto-channel checkboxes and channel progress bars
     for (const btn of this.spellButtons) {
       btn.render(renderer);
+
+      // Auto-channel checkbox
+      const cbX = btn.x - 16;
+      const cbY = btn.y + 5;
+      if (btn._autoChannel) {
+        renderer.drawRect(cbX, cbY, 12, 12, '#00cc44');
+      }
+      renderer.drawRectOutline(cbX, cbY, 12, 12, '#888');
+
+      // Channel progress bar
+      const progress = this.channeling.getChannelProgress(btn._gemId);
+      if (progress) {
+        const fill = 1 - (progress.remaining / progress.total);
+        renderer.drawRect(btn.x, btn.y + 23, 90, 4, '#333');
+        renderer.drawRect(btn.x, btn.y + 23, Math.floor(90 * fill), 4, '#ffaa00');
+
+        // Show remaining time on button text
+        const spell = getSpell(btn._spellId);
+        if (spell) {
+          btn.text = `${spell.name} (${progress.remaining.toFixed(1)}s)`;
+        }
+      }
     }
 
     // Collision point indicator

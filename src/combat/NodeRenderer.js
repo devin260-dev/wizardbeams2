@@ -52,7 +52,7 @@ export class NodeRenderer {
     for (const [id, node] of Object.entries(nodes)) {
       const isPathway = node.type === NODE_TYPE.PATHWAY;
       const isBeamType = node.type === NODE_TYPE.BEAM_TYPE;
-      const radius = isPathway ? 5 : 8;
+      const radius = isPathway ? 6 : 10;
 
       // Node base color
       let color = STATE_COLORS[node.state] || '#333';
@@ -78,20 +78,20 @@ export class NodeRenderer {
 
       // Damaged: draw X
       if (node.state === NodeState.DAMAGED) {
-        r.drawLine(node.x - 4, node.y - 4, node.x + 4, node.y + 4, '#ff0000', 2);
-        r.drawLine(node.x - 4, node.y + 4, node.x + 4, node.y - 4, '#ff0000', 2);
+        r.drawLine(node.x - 5, node.y - 5, node.x + 5, node.y + 5, '#ff0000', 2);
+        r.drawLine(node.x - 5, node.y + 5, node.x + 5, node.y - 5, '#ff0000', 2);
       }
 
       // Activation/repair progress arc
       if (node.activation_progress > 0 && node.activation_progress < 1) {
         const angle = node.activation_progress * Math.PI * 2;
-        r.drawArc(node.x, node.y, radius + 3, -Math.PI / 2, -Math.PI / 2 + angle, '#fff', 2);
+        r.drawArc(node.x, node.y, radius + 4, -Math.PI / 2, -Math.PI / 2 + angle, '#fff', 2);
       }
 
       // Gem element indicator (small dot)
       if (node.gem && node.gem.element && node.state !== NodeState.DAMAGED) {
         const dotColor = ELEMENT_COLORS[node.gem.element];
-        r.drawCircle(node.x + radius, node.y - radius, 3, dotColor);
+        r.drawCircle(node.x + radius, node.y - radius, 4, dotColor);
       }
 
       // Spell indicator for channeled spell gems
@@ -120,8 +120,8 @@ export class NodeRenderer {
 
       // Glowing white dot
       const glow = 0.5 + 0.5 * Math.sin(this.pulseTimer * 6);
-      r.drawCircle(ax, ay, 4, '#ffffff', 0.5 + glow * 0.5);
-      r.drawCircle(ax, ay, 6, '#ffffff', 0.2 + glow * 0.2);
+      r.drawCircle(ax, ay, 5, '#ffffff', 0.5 + glow * 0.5);
+      r.drawCircle(ax, ay, 7, '#ffffff', 0.2 + glow * 0.2);
     }
 
     // Draw repair indicator
@@ -129,7 +129,7 @@ export class NodeRenderer {
       const repairTime = nodeNetwork.getEffectiveRepairTime();
       const progress = nodeNetwork.repairTimer / repairTime;
       const angle = progress * Math.PI * 2;
-      r.drawArc(awarenessNode.x, awarenessNode.y, 12, -Math.PI / 2, -Math.PI / 2 + angle, '#00ff00', 2);
+      r.drawArc(awarenessNode.x, awarenessNode.y, 14, -Math.PI / 2, -Math.PI / 2 + angle, '#00ff00', 2);
     }
   }
 
@@ -141,7 +141,7 @@ export class NodeRenderer {
 
     // Head
     const head = nodes.crown;
-    r.drawCircle(head.x, head.y - 12, 10, color);
+    r.drawCircle(head.x, head.y - 12, 12, color);
 
     // Spine line (crown to belly)
     r.drawLine(nodes.crown.x, nodes.crown.y, nodes.belly.x, nodes.belly.y, color, 3);
