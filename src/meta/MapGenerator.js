@@ -95,15 +95,25 @@ export function generateMap() {
     }
   }
 
-  // Flatten
-  const allNodes = [...tiers.flat(), bossNode];
+  // Add start node before tier 1 — player begins here, tier 1 nodes are reachable
+  const startNode = {
+    id: nodeIdCounter++,
+    tier: 0,
+    type: 'start',
+    connections: tiers[0].map(n => n.id),
+    visited: false,
+    hidden: false,
+    x: 40,
+    y: 270,
+    enemyData: null,
+  };
 
-  // Start node (tier 1, first)
-  const startNodeId = tiers[0][0].id;
+  // Flatten
+  const allNodes = [startNode, ...tiers.flat(), bossNode];
 
   return {
     nodes: allNodes,
-    startNodeId,
+    startNodeId: startNode.id,
     bossNodeId: bossNode.id,
     tiers,
   };

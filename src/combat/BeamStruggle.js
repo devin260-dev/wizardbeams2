@@ -22,6 +22,7 @@ export class BeamStruggle {
       mana -= channeling.getContinuousManaCost();
     }
     mana -= this._getCounterDebuff(side);
+    mana += sideState.panic_mana_bonus || 0;
     return mana; // can be negative
   }
 

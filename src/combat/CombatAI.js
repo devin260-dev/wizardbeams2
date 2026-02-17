@@ -19,12 +19,20 @@ export class CombatAI {
     this.greyBoltTimer = 0;
     this.reactionTimer = 0;
     this.pendingBeamSwitch = null;
+
+    // Panic system (once per fight)
+    this.panicActive = false;
+    this.panicTimer = 0;
+    this.panicUsed = false;
   }
 
   update(dt) {
     this.decisionTimer += dt;
     this.greyBoltTimer += dt;
     this.reactionTimer += dt;
+
+    // Panic system
+    this._updatePanic(dt);
 
     if (this.decisionTimer < BALANCE.enemy.ai_decision_interval) return;
     this.decisionTimer = 0;
@@ -37,9 +45,54 @@ export class CombatAI {
     this._beamAI(es);
   }
 
+  _updatePanic(dt) {
+    const es = this.state.enemy;
+    const panicCfg = BALANCE.enemy.panic;
+
+    if (this.panicActive) {
+      this.panicTimer -= dt;
+      if (this.panicTimer <= 0) {
+        this.panicActive = false;
+        es.panic_mana_bonus = 0;
+      }
+    } else if (!this.panicUsed) {
+      const enemyRemaining = 100 - this.state.collision_point; // how far beam is from enemy's side
+      if (enemyRemaining <= panicCfg.threshold) {
+        this.panicActive = true;
+        this.panicUsed = true;
+        this.panicTimer = panicCfg.duration;
+        es.panic_mana_bonus = panicCfg.mana_bonus;
+        this.enemyNetwork.awarenessSpeed = BALANCE.nodes.awareness_travel_time; // match player speed permanently
+      }
+    }
+  }
+
   _awarenessAI() {
     const network = this.enemyNetwork;
     if (network.awarenessPath.length > 0) return; // Already traveling
+
+    const es = this.state.enemy;
+    const onNeutral = es.current_beam_school === 'neutral';
+
+    // Priority 0: If stuck on neutral, prioritize opening a beam type node to escape
+    if (onNeutral) {
+      // First check if any beam type node is damaged — repair it
+      const damagedBeams = network.getDamagedNodes().filter(n =>
+        BEAM_TYPE_NODES.includes(n.id)
+      );
+      if (damagedBeams.length > 0) {
+        network.setAwarenessTarget(damagedBeams[0].id);
+        return;
+      }
+      // Then check for dormant beam type nodes to activate
+      const dormantBeams = network.getDormantNodes().filter(n =>
+        BEAM_TYPE_NODES.includes(n.id)
+      );
+      if (dormantBeams.length > 0) {
+        network.setAwarenessTarget(dormantBeams[0].id);
+        return;
+      }
+    }
 
     // Priority 1: Repair damaged nodes
     const damaged = network.getDamagedNodes();
@@ -85,6 +138,27 @@ export class CombatAI {
 
     const ps = this.state.player;
     const counterMap = BALANCE.school.counter_map;
+
+    // Top priority: escape neutral ASAP by switching to any available attack beam
+    if (es.current_beam_school === 'neutral') {
+      // Prefer the beam that counters the player
+      const counterEntry = Object.entries(counterMap).find(([k, v]) => v === ps.current_beam_school);
+      if (counterEntry && this._canSwitchTo(counterEntry[0], es)) {
+        this.beamSwitcher.requestSwitch(counterEntry[0]);
+        this.reactionTimer = 0;
+        return;
+      }
+      // Otherwise take any available attack beam
+      for (const school of ['pure', 'order', 'chaos']) {
+        if (this._canSwitchTo(school, es)) {
+          this.beamSwitcher.requestSwitch(school);
+          this.reactionTimer = 0;
+          return;
+        }
+      }
+      // No attack beam available — awareness AI will work on opening one
+      return;
+    }
 
     // Am I being countered?
     if (es.current_beam_school !== 'neutral' &&

@@ -54,7 +54,7 @@ export const BALANCE = {
 
   stability: {
     drain_rate: 12.5,
-    regen_rate: 25.0,
+    regen_rate: 1.0,
     max: 100.0,
   },
 
@@ -72,7 +72,7 @@ export const BALANCE = {
   nodes: {
     activation_time: 2.0,
     repair_time: 3.0,
-    awareness_travel_time: 300, // ms between adjacent nodes
+    awareness_travel_time: 375, // ms between adjacent nodes
     click_radius: 15,
   },
 
@@ -81,7 +81,7 @@ export const BALANCE = {
       mana_cost: 1.0,
       hp_damage: 3,
       cooldown: 5.0,
-      travel_speed: 300.0,
+      travel_speed: 375.0,
     },
     shield: {
       mana_cost: 1.0,
@@ -92,7 +92,7 @@ export const BALANCE = {
       mana_cost: 2.0,
       hp_damage_per_node: 3,
       cooldown: 15.0,
-      travel_speed: 200.0,
+      travel_speed: 312.5,
     },
     earth_barrage: {
       rock_count: 4,
@@ -100,7 +100,7 @@ export const BALANCE = {
       mana_cost: 2.0,
       hp_damage_per_rock: 3,
       cooldown: 12.0,
-      travel_speed: 250.0,
+      travel_speed: 312.5,
       stagger_delay: 0.1,
     },
     air_choke: {
@@ -157,6 +157,11 @@ export const BALANCE = {
   enemy: {
     grey_bolt_interval: 12.0,
     ai_decision_interval: 1.0,
+    panic: {
+      threshold: 25,       // collision_point <= this triggers panic
+      mana_bonus: 5,       // bonus effective mana during panic
+      duration: 15.0,      // seconds panic lasts (once per fight)
+    },
     // Tier-dependent stats
     tiers: {
       1: {
@@ -197,13 +202,13 @@ export const BALANCE = {
     },
     boss: {
       hp: 40,
-      awareness_speed: 825,
+      awareness_speed: 375,
       beam_types_unlocked: 3,
       reaction_time: 0.5,
       has_shield: true,
       gem_count: 6,
       decision_delay: 0.3,
-      all_nodes_open: true,
+      bonus_open_nodes: 1,
       activation_time_multiplier: 2.25,
     },
   },

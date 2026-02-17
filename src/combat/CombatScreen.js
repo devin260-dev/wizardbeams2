@@ -62,13 +62,13 @@ export class CombatScreen {
       this.runState.school_attunement,
       this.runState.gems,
       this.runState.gem_slots,
-      false
+      0
     );
     this.enemyNetwork.init(
       this.enemyData.school_attunement,
       this.enemyData.gems,
       this.enemyData.gem_slots,
-      this.enemyData.all_nodes_open
+      this.enemyData.bonus_open_nodes || 0
     );
 
     if (this.enemyData.awareness_speed) {
@@ -148,6 +148,7 @@ export class CombatScreen {
     });
 
     this.resultTimer = 0;
+    this.paused = false;
   }
 
   _checkBeamNodeLoss(data) {
@@ -163,6 +164,12 @@ export class CombatScreen {
   }
 
   update(dt) {
+    if (this.input.wasKeyPressed(' ') && !this.combatState.combat_over) {
+      this.paused = !this.paused;
+    }
+
+    if (this.paused) return;
+
     if (this.combatState.combat_over) {
       this.resultTimer += dt;
       if (this.resultTimer > 2) {
@@ -224,6 +231,13 @@ export class CombatScreen {
     // HUD
     this.combatHUD.render(r);
 
+    // Pause overlay
+    if (this.paused) {
+      r.drawRect(0, 0, 960, 540, '#000000', 0.5);
+      r.drawText('PAUSED', 480, 250, '#ffffff', 40, 'center', 'middle');
+      r.drawText('Press SPACE to resume', 480, 300, '#888', 14, 'center', 'middle');
+    }
+
     // Combat result overlay
     if (this.combatState.combat_over) {
       r.drawRect(0, 0, 960, 540, '#000000', 0.5);
@@ -244,6 +258,33 @@ export class CombatScreen {
 
     // Head
     renderer.drawCircle(x, y - 40, 12, '#ddc');
+
+    // Super Saiyan hair (panic mode)
+    if (sideState.panic_mana_bonus > 0) {
+      const hx = x, hy = y - 40;
+      const spikes = [
+        // center spike (tallest)
+        [{ x: hx - 4, y: hy - 10 }, { x: hx, y: hy - 32 }, { x: hx + 4, y: hy - 10 }],
+        // left-center spike
+        [{ x: hx - 8, y: hy - 8 }, { x: hx - 7, y: hy - 28 }, { x: hx - 2, y: hy - 10 }],
+        // right-center spike
+        [{ x: hx + 2, y: hy - 10 }, { x: hx + 7, y: hy - 28 }, { x: hx + 8, y: hy - 8 }],
+        // far left spike
+        [{ x: hx - 12, y: hy - 4 }, { x: hx - 14, y: hy - 22 }, { x: hx - 6, y: hy - 8 }],
+        // far right spike
+        [{ x: hx + 6, y: hy - 8 }, { x: hx + 14, y: hy - 22 }, { x: hx + 12, y: hy - 4 }],
+        // side left
+        [{ x: hx - 13, y: hy }, { x: hx - 18, y: hy - 16 }, { x: hx - 10, y: hy - 5 }],
+        // side right
+        [{ x: hx + 10, y: hy - 5 }, { x: hx + 18, y: hy - 16 }, { x: hx + 13, y: hy }],
+      ];
+      for (const spike of spikes) {
+        renderer.drawFilledPolygon(spike, '#ffd700', 0.9);
+      }
+      // Aura glow
+      renderer.drawCircleOutline(x, y - 10, 30, '#ffd700', 2);
+      renderer.drawCircle(x, y - 10, 30, '#ffd700', 0.08);
+    }
 
     // Staff
     const staffDir = mirrored ? -1 : 1;

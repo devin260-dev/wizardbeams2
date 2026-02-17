@@ -2,6 +2,7 @@ import { Button } from '../rendering/UIComponents.js';
 import { RunState } from './RunState.js';
 import { generateMap } from './MapGenerator.js';
 import { generateEnemy } from '../data/EnemyDatabase.js';
+import { createGem } from '../data/GemDatabase.js';
 import { BALANCE } from '../data/BalanceConfig.js';
 import { GEM_SLOT_NODES } from '../combat/NodeNetwork.js';
 
@@ -102,16 +103,17 @@ export class StartScreen {
     const runState = new RunState();
     runState.startNewRun(school, element);
 
-    // Auto-slot starting gems
-    const slots = GEM_SLOT_NODES;
-    for (let i = 0; i < runState.gems.length && i < slots.length; i++) {
-      runState.slotGem(runState.gems[i].id, slots[i]);
-    }
+    // Add all spell gems for testing
+    runState.addGem(createGem('fire', 'pure', 'spell_cooldown', BALANCE.passives.spell_cooldown_bonus, 'fireball'));
+    runState.addGem(createGem('earth', 'pure', 'spell_cooldown', BALANCE.passives.spell_cooldown_bonus, 'earth_barrage'));
+    runState.addGem(createGem('air', 'pure', 'spell_cooldown', BALANCE.passives.spell_cooldown_bonus, 'air_choke'));
+    runState.addGem(createGem('water', 'pure', 'spell_cooldown', BALANCE.passives.spell_cooldown_bonus, 'water_beam'));
 
-    // Generate a tier 1 enemy and go straight to combat
+    // Generate a tier 1 enemy
     const enemyData = generateEnemy(1, false, false);
 
-    this.sceneManager.changeScene('combat', { runState, enemyData, devMode: true });
+    // Go to loadout so player can equip gems before combat
+    this.sceneManager.changeScene('loadout', { runState, enemyData, devMode: true });
   }
 
   render(ctx) {

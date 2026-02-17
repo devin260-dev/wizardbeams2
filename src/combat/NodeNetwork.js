@@ -106,7 +106,7 @@ export class NodeNetwork {
     this.passiveBonuses = {};
   }
 
-  init(attunement, gems, gemSlots, allNodesOpen = false) {
+  init(attunement, gems, gemSlots, bonusOpenNodes = 0) {
     // Reset all nodes to dormant
     for (const id of Object.keys(this.nodes)) {
       this.nodes[id].state = NodeState.DORMANT;
@@ -130,11 +130,20 @@ export class NodeNetwork {
       this.nodes[attunedNode].state = NodeState.OPEN;
     }
 
-    // Boss: all nodes open
-    if (allNodesOpen) {
+    // Open bonus nodes (random dormant nodes adjacent to already-open nodes)
+    for (let i = 0; i < bonusOpenNodes; i++) {
+      const dormantNeighbors = [];
       for (const id of Object.keys(this.nodes)) {
-        this.nodes[id].state = NodeState.OPEN;
+        if (this.nodes[id].state !== NodeState.DORMANT) continue;
+        // Check if adjacent to any Open node
+        const adj = ADJACENCY[id] || [];
+        if (adj.some(nId => this.nodes[nId].state === NodeState.OPEN)) {
+          dormantNeighbors.push(id);
+        }
       }
+      if (dormantNeighbors.length === 0) break;
+      const pick = dormantNeighbors[Math.floor(Math.random() * dormantNeighbors.length)];
+      this.nodes[pick].state = NodeState.OPEN;
     }
 
     // Set awareness at attuned beam node

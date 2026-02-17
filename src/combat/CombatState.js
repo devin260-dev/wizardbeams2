@@ -60,6 +60,9 @@ export class CombatState {
 
       // Active drains (for Air Choke/Water Beam vs shield)
       active_stability_drains: [],
+
+      // Panic bonus (set by AI)
+      panic_mana_bonus: 0,
     };
 
     if (runState) {

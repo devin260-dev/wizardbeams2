@@ -2,6 +2,7 @@ import { BALANCE } from '../data/BalanceConfig.js';
 import { Button } from '../rendering/UIComponents.js';
 
 const TYPE_COLORS = {
+  start: '#888888',
   duel: '#cc4444',
   elite: '#ff6600',
   rest: '#44cc44',
@@ -12,6 +13,7 @@ const TYPE_COLORS = {
 };
 
 const TYPE_ICONS = {
+  start: '\u2302',     // home
   duel: '\u2620',      // skull
   elite: '\u2694',     // crossed swords
   rest: '\u2668',      // hot springs (campfire)
@@ -34,13 +36,25 @@ export class MapScreen {
   enter(data) {
     this.runState = data.runState;
     this.mapData = this.runState.map_data;
+    this.equipButton = new Button(830, 505, 120, 30, 'EQUIPMENT', { color: '#224455', hoverColor: '#33aa88', fontSize: 12 });
   }
 
   exit() {}
 
   update(dt) {
+    const mouse = this.input.getMousePos();
+    this.equipButton.updateHover(mouse.x, mouse.y);
+
     if (!this.input.wasClicked()) return;
     const click = this.input.getClickPos();
+
+    if (this.equipButton.isClicked(click.x, click.y)) {
+      this.sceneManager.changeScene('loadout', {
+        runState: this.runState,
+        fromMap: true,
+      });
+      return;
+    }
 
     // Find clickable nodes
     const currentNode = this._getNode(this.runState.current_node_id);
@@ -114,6 +128,8 @@ export class MapScreen {
     r.drawText(`Gold: ${this.runState.gold}`, 150, 510, '#cccc44', 12);
     r.drawText(`Gems: ${this.runState.gems.length}`, 280, 510, '#44cccc', 12);
     r.drawText(`Tier: ${this.runState.current_tier}`, 400, 510, '#888', 12);
+
+    this.equipButton.render(r);
 
     if (!this.mapData) return;
 

@@ -50,8 +50,16 @@ export class LoadoutScreen {
 
   enter(data) {
     this.runState = data.runState;
-    this.enemyData = data.enemyData;
+    this.enemyData = data.enemyData || null;
+    this.fromMap = data.fromMap || false;
+    this.devMode = data.devMode || false;
     this.selectedGemId = null;
+
+    if (this.fromMap) {
+      this.readyButton.text = 'BACK';
+    } else {
+      this.readyButton.text = 'READY';
+    }
   }
 
   exit() {}
@@ -63,12 +71,19 @@ export class LoadoutScreen {
     if (!this.input.wasClicked()) return;
     const click = this.input.getClickPos();
 
-    // Ready button
+    // Ready / Back button
     if (this.readyButton.isClicked(click.x, click.y)) {
-      this.sceneManager.changeScene('combat', {
-        runState: this.runState,
-        enemyData: this.enemyData,
-      });
+      if (this.fromMap) {
+        this.sceneManager.changeScene('map', {
+          runState: this.runState,
+        });
+      } else {
+        this.sceneManager.changeScene('combat', {
+          runState: this.runState,
+          enemyData: this.enemyData,
+          devMode: this.devMode,
+        });
+      }
       return;
     }
 
