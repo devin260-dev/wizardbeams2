@@ -11,10 +11,10 @@ export const BALANCE = {
     counter_debuff: 3.0,
     counter_debuff_max: 6.0,
     colors: {
-      order: { r: 0.5, g: 0.0, b: 0.8, hex: '#8000cc' },
-      chaos: { r: 1.0, g: 0.9, b: 0.0, hex: '#ffe600' },
-      pure: { r: 1.0, g: 0.3, b: 0.0, hex: '#ff4d00' },
-      neutral: { r: 0.5, g: 0.5, b: 0.5, hex: '#808080' },
+      order: { r: 0.53, g: 0.53, b: 0.53, hex: '#888888' },
+      chaos: { r: 0.07, g: 0.07, b: 0.07, hex: '#111111' },
+      pure:  { r: 0.93, g: 0.93, b: 0.93, hex: '#eeeeee' },
+      neutral: { r: 0.33, g: 0.33, b: 0.33, hex: '#555555' },
     },
     // RPS: order beats chaos, chaos beats pure, pure beats order
     counter_map: {

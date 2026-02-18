@@ -17,9 +17,9 @@ const STATE_COLORS = {
 };
 
 const SCHOOL_NODE_COLORS = {
-  pure: '#ff4d00',
-  chaos: '#ffe600',
-  order: '#8000cc',
+  pure:  '#eeeeee',
+  chaos: '#111111',
+  order: '#888888',
 };
 
 export class NodeRenderer {

@@ -18,10 +18,10 @@ export class CombatHUD {
 
     // Beam type buttons — Order, Pure, Chaos across top; Neutral beneath
     this.beamButtons = {
-      order: new Button(370, 494, 65, 24, 'Order', { color: '#3a0066', hoverColor: '#5500aa' }),
-      pure: new Button(440, 494, 65, 24, 'Pure', { color: '#662200', hoverColor: '#aa3300' }),
-      chaos: new Button(510, 494, 65, 24, 'Chaos', { color: '#665500', hoverColor: '#aa8800' }),
-      neutral: new Button(440, 520, 65, 24, 'Neutral', { color: '#444', hoverColor: '#666' }),
+      order: new Button(370, 494, 65, 24, 'Order', { color: '#444444', hoverColor: '#606060' }),
+      pure: new Button(440, 494, 65, 24, 'Pure', { color: '#666666', hoverColor: '#888888' }),
+      chaos: new Button(510, 494, 65, 24, 'Chaos', { color: '#111111', hoverColor: '#252525' }),
+      neutral: new Button(440, 520, 65, 24, 'Neutral', { color: '#2d2d2d', hoverColor: '#444444' }),
     };
 
     // Spell book widget buttons (~x=186, y=440)
