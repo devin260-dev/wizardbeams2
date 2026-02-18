@@ -64,9 +64,9 @@ export const BALANCE = {
   },
 
   nodes: {
-    activation_time: 2.0,
-    repair_time: 3.0,
-    awareness_travel_time: 375, // ms between adjacent nodes
+    activation_time: 2.5,
+    repair_time: 3.5,
+    awareness_travel_time: 413, // ms between adjacent nodes
     click_radius: 15,
   },
 

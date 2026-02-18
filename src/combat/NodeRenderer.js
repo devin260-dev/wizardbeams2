@@ -139,6 +139,27 @@ export class NodeRenderer {
     }
   }
 
+  renderShieldEffect(nodeNetwork, dominantElement) {
+    const r = this.renderer;
+    const bounds = nodeNetwork.getBounds();
+    const color = BALANCE.element.colors[dominantElement] || '#88ccff';
+    const pulse = 0.5 + 0.5 * Math.sin(this.pulseTimer * 3);
+
+    // Expand bounds slightly so the shield sits outside the nodes
+    const pad = 6;
+    const x = bounds.x - pad;
+    const y = bounds.y - pad;
+    const w = bounds.w + pad * 2;
+    const h = bounds.h + pad * 2;
+
+    // Translucent fill
+    r.drawRect(x, y, w, h, color, 0.06 + pulse * 0.04);
+    // Pulsing outline
+    r.drawRectOutline(x, y, w, h, color, 1 + pulse);
+    // Second outer outline, dimmer
+    r.drawRectOutline(x - 3, y - 3, w + 6, h + 6, color, 0.3 + pulse * 0.2);
+  }
+
   // Draw simplified meditation figure silhouette
   renderSilhouette(nodeNetwork) {
     const r = this.renderer;

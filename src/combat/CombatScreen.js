@@ -236,6 +236,14 @@ export class CombatScreen {
     this.playerNodeRenderer.renderSilhouette(this.playerNetwork);
     this.enemyNodeRenderer.renderSilhouette(this.enemyNetwork);
 
+    // Shield effect (drawn behind nodes)
+    if (this.combatState.player.shield_up) {
+      this.playerNodeRenderer.renderShieldEffect(this.playerNetwork, this.combatState.player.dominant_element);
+    }
+    if (this.combatState.enemy.shield_up) {
+      this.enemyNodeRenderer.renderShieldEffect(this.enemyNetwork, this.combatState.enemy.dominant_element);
+    }
+
     // Node networks
     this.playerNodeRenderer.render(this.playerNetwork);
     this.enemyNodeRenderer.render(this.enemyNetwork);
