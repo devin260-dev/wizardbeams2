@@ -162,7 +162,7 @@ export class NodeNetwork {
     this.passiveBonuses = {};
     for (const id of Object.keys(this.nodes)) {
       const node = this.nodes[id];
-      if ((node.state === NodeState.OPEN || node.state === NodeState.CHANNELED) && node.gem) {
+      if (node.state === NodeState.OPEN && node.gem) {
         const stat = node.gem.passive_stat;
         if (stat) {
           this.passiveBonuses[stat] = (this.passiveBonuses[stat] || 0) + node.gem.passive_value;
@@ -225,10 +225,6 @@ export class NodeNetwork {
     return Object.values(this.nodes).filter(n => n.state === NodeState.OPEN);
   }
 
-  getChanneledNodes() {
-    return Object.values(this.nodes).filter(n => n.state === NodeState.CHANNELED);
-  }
-
   getDamagedNodes() {
     return Object.values(this.nodes).filter(n => n.state === NodeState.DAMAGED);
   }
@@ -249,13 +245,14 @@ export class NodeNetwork {
     return this.nodes[nodeId]?.state === NodeState.OPEN;
   }
 
-  // Mana from Open + Channeled nodes (each +1)
+  // Mana from Open nodes (each +1, +1 bonus if gem is slotted)
   getNodeMana() {
     let mana = 0;
     for (const node of Object.values(this.nodes)) {
       if (node.type === NODE_TYPE.PATHWAY) continue;
-      if (node.state === NodeState.OPEN || node.state === NodeState.CHANNELED) {
+      if (node.state === NodeState.OPEN) {
         mana += 1;
+        if (node.gem) mana += 1;
       }
     }
     return mana;
@@ -291,15 +288,28 @@ export class NodeNetwork {
     return dominant;
   }
 
-  // Check if all 10 mana-contributing nodes are Open or Channeled
+  // Check if all 10 mana-contributing nodes are Open
   allManaNodesActive() {
     for (const id of [...GEM_SLOT_NODES, ...BEAM_TYPE_NODES]) {
       const node = this.nodes[id];
-      if (node.state !== NodeState.OPEN && node.state !== NodeState.CHANNELED) {
+      if (node.state !== NodeState.OPEN) {
         return false;
       }
     }
     return true;
+  }
+
+  // Bounding rect of all nodes (with padding)
+  getBounds() {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const node of Object.values(this.nodes)) {
+      if (node.x < minX) minX = node.x;
+      if (node.y < minY) minY = node.y;
+      if (node.x > maxX) maxX = node.x;
+      if (node.y > maxY) maxY = node.y;
+    }
+    const pad = 15;
+    return { x: minX - pad, y: minY - pad, w: (maxX - minX) + 2 * pad, h: (maxY - minY) + 2 * pad };
   }
 
   // Click detection

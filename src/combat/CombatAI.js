@@ -4,13 +4,12 @@ import { SCHOOL_TO_NODE, GEM_SLOT_NODES, BEAM_TYPE_NODES } from './NodeNetwork.j
 
 export class CombatAI {
   constructor(combatState, eventBus, enemyNetwork, playerNetwork,
-    enemyBeamSwitcher, enemyChanneling, enemyShield, spellCaster, enemyData) {
+    enemyBeamSwitcher, enemyShield, spellCaster, enemyData) {
     this.state = combatState;
     this.eventBus = eventBus;
     this.enemyNetwork = enemyNetwork;
     this.playerNetwork = playerNetwork;
     this.beamSwitcher = enemyBeamSwitcher;
-    this.channeling = enemyChanneling;
     this.shield = enemyShield;
     this.spellCaster = spellCaster;
     this.enemyData = enemyData;
@@ -193,95 +192,35 @@ export class CombatAI {
         }
       }
     }
-
-    // Is my current beam locked out?
-    if (es.locked_beam_types.includes(es.current_beam_school)) {
-      for (const school of ['pure', 'order', 'chaos']) {
-        if (this._canSwitchTo(school, es)) {
-          this.beamSwitcher.requestSwitch(school);
-          this.reactionTimer = 0;
-          return;
-        }
-      }
-    }
   }
 
   _canSwitchTo(school, es) {
     if (school === es.current_beam_school) return false;
-    if (es.locked_beam_types.includes(school)) return false;
     const beamNode = SCHOOL_TO_NODE[school];
     return this.enemyNetwork.isNodeOpen(beamNode);
   }
 
   _shieldAI(es) {
-    // Try to channel shield if not already
-    if (es.shield_state === 'unavailable') {
-      // Find shield gem
+    // Cast shield when gem is available (down) and not on cooldown
+    if (es.shield_state === 'down' && !this.spellCaster.isOnCooldown('shield', 'enemy')) {
+      this.spellCaster.castSpell('shield', {}, 'enemy');
+    }
+  }
+
+  _spellAI(es) {
+    if (this.greyBoltTimer >= BALANCE.enemy.grey_bolt_interval &&
+        !this.spellCaster.isOnCooldown('grey_bolt', 'enemy')) {
       for (const node of Object.values(this.enemyNetwork.nodes)) {
-        if (node.gem && node.gem.spell_id === 'shield' && node.state === NodeState.OPEN) {
-          const mana = this.enemyNetwork.getNodeMana() + 1; // +1 attunement
-          if (mana >= 3) {
-            this.channeling.requestChannel(node.gem.id);
+        if (node.gem && node.gem.spell_id === 'grey_bolt' && node.state === NodeState.OPEN) {
+          const target = this._pickGreyBoltTarget();
+          if (target) {
+            this.spellCaster.castSpell('grey_bolt', { nodeId: target }, 'enemy');
+            this.greyBoltTimer = 0;
           }
           break;
         }
       }
     }
-
-    // Raise shield when threats incoming
-    if (es.shield_state === 'down') {
-      // Check if player has any channeled spells
-      const playerHasSpells = this.state.player.channeled_gems.length > 0;
-      if (playerHasSpells) {
-        this.shield.toggleShield();
-      }
-    }
-  }
-
-  _spellAI(es) {
-    // Try to channel Grey Bolt
-    const greyBoltChanneled = this._isSpellChanneled('grey_bolt');
-
-    if (!greyBoltChanneled) {
-      if (es.stability > 50 && (es.effective_mana || 0) >= 3) {
-        for (const node of Object.values(this.enemyNetwork.nodes)) {
-          if (node.gem && node.gem.spell_id === 'grey_bolt' && node.state === NodeState.OPEN) {
-            this.channeling.requestChannel(node.gem.id);
-            break;
-          }
-        }
-      }
-    } else {
-      // Grey bolt is channeled
-      if ((es.effective_mana || 0) < 2) {
-        // Unchannel for mana
-        for (const node of Object.values(this.enemyNetwork.nodes)) {
-          if (node.gem && node.gem.spell_id === 'grey_bolt' && node.state === NodeState.CHANNELED) {
-            this.channeling.requestUnchannel(node.gem.id);
-            break;
-          }
-        }
-      } else if (this.greyBoltTimer >= BALANCE.enemy.grey_bolt_interval &&
-        !this.spellCaster.isOnCooldown('grey_bolt', 'enemy')) {
-        // Cast Grey Bolt
-        const target = this._pickGreyBoltTarget();
-        if (target) {
-          this.spellCaster.castSpell('grey_bolt', { nodeId: target }, 'enemy');
-          this.greyBoltTimer = 0;
-        }
-      }
-    }
-  }
-
-  _isSpellChanneled(spellId) {
-    for (const gemId of this.state.enemy.channeled_gems) {
-      for (const node of Object.values(this.enemyNetwork.nodes)) {
-        if (node.gem && node.gem.id === gemId && node.gem.spell_id === spellId) {
-          return true;
-        }
-      }
-    }
-    return false;
   }
 
   _pickGreyBoltTarget() {
@@ -289,8 +228,7 @@ export class CombatAI {
     const candidates = [];
 
     for (const [id, node] of Object.entries(this.playerNetwork.nodes)) {
-      if (node.state === NodeState.DAMAGED) continue;
-      if (node.state !== NodeState.OPEN && node.state !== NodeState.CHANNELED) continue;
+      if (node.state !== NodeState.OPEN) continue;
 
       // Tier 1: pure random targeting (all nodes equal)
       // Tier 2+: weighted toward high-value targets

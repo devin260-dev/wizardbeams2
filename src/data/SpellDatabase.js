@@ -22,11 +22,10 @@ export const SPELLS = {
     school: 'neutral',
     is_projectile: false,
     node_effect: null,
-    mana_cost: BALANCE.spells.shield.mana_cost,
-    cooldown: 0,
+    cooldown: BALANCE.spells.shield.cooldown,
     travel_speed: 0,
     hp_damage: 0,
-    targeting: 'toggle',
+    targeting: 'immediate',
   },
 
   fireball: {

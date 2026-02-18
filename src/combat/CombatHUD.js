@@ -1,19 +1,18 @@
 import { BALANCE } from '../data/BalanceConfig.js';
 import { Button, ProgressBar, PipBar } from '../rendering/UIComponents.js';
-import { getSpell } from '../data/SpellDatabase.js';
 import { NodeState } from './CombatState.js';
 import { SCHOOL_TO_NODE } from './NodeNetwork.js';
 
 export class CombatHUD {
   constructor(combatState, eventBus, inputManager, playerNetwork, enemyNetwork,
-    beamSwitcher, channelingSystem, spellCaster, shieldSystem) {
+    beamSwitcher, spellBook, spellCaster, shieldSystem) {
     this.state = combatState;
     this.eventBus = eventBus;
     this.input = inputManager;
     this.playerNetwork = playerNetwork;
     this.enemyNetwork = enemyNetwork;
     this.beamSwitcher = beamSwitcher;
-    this.channeling = channelingSystem;
+    this.spellBook = spellBook;
     this.spellCaster = spellCaster;
     this.shield = shieldSystem;
 
@@ -25,11 +24,13 @@ export class CombatHUD {
       neutral: new Button(440, 520, 65, 24, 'Neutral', { color: '#444', hoverColor: '#666' }),
     };
 
-    // Spell buttons will be generated dynamically
-    this.spellButtons = [];
+    // Spell book widget buttons (~x=186, y=440)
+    this.leftArrow = new Button(186, 447, 22, 22, '◄', { color: '#333', hoverColor: '#555', fontSize: 11 });
+    this.bookBtn = new Button(211, 440, 60, 32, 'Hold', { color: '#335', hoverColor: '#448', fontSize: 12 });
+    this.rightArrow = new Button(274, 447, 22, 22, '►', { color: '#333', hoverColor: '#555', fontSize: 11 });
 
-    // Auto-channel toggle state, persisted across _buildSpellButtons rebuilds
-    this.autoChannelFlags = new Map(); // gemId → boolean
+    // Shield button (separate toggle)
+    this.shieldBtn = new Button(211, 500, 60, 22, 'Shield', { color: '#444', hoverColor: '#666', fontSize: 12 });
 
     // HP bars
     this.playerHpBar = new PipBar(10, 10, 6, 14, BALANCE.hp.starting_max, { fgColor: '#cc0000', bgColor: '#440000' });
@@ -39,48 +40,47 @@ export class CombatHUD {
     this.playerStabilityBar = new ProgressBar(10, 30, 200, 10, { fgColor: '#00cc00', bgColor: '#003300' });
     this.enemyStabilityBar = new ProgressBar(750, 30, 200, 10, { fgColor: '#00cc00', bgColor: '#003300' });
 
-    // Mana display positions
-    this.playerManaPos = { x: 10, y: 48 };
-    this.enemyManaPos = { x: 900, y: 48 };
+
+    // Hold detection state
+    this.holdingBook = false;
+    this.holdJustReleased = false;
+
+    // Shield hold detection state
+    this.holdingShield = false;
+    this.shieldChargeTimer = 0;
   }
 
-  _buildSpellButtons() {
-    this.spellButtons = [];
-    const playerNodes = this.playerNetwork.nodes;
-    const btnX = 216;
-    let btnY = 350;
+  _pointInButton(btn, x, y) {
+    return x >= btn.x && x <= btn.x + btn.w && y >= btn.y && y <= btn.y + btn.h;
+  }
 
-    for (const [nodeId, node] of Object.entries(playerNodes)) {
-      if (!node.gem || !node.gem.spell_id) continue;
+  _pointInRect(x, y, rect) {
+    return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+  }
 
-      const spell = getSpell(node.gem.spell_id);
-      if (!spell) continue;
-
-      const btn = new Button(btnX, btnY, 90, 22, spell.name, {
-        color: '#333', hoverColor: '#555', fontSize: 11,
-      });
-      btn._gemId = node.gem.id;
-      btn._nodeId = nodeId;
-      btn._spellId = node.gem.spell_id;
-      btn._autoChannel = this.autoChannelFlags.get(node.gem.id) || false;
-      this.spellButtons.push(btn);
-      btnY += 26;
+  _findOpenShieldGem() {
+    for (const node of Object.values(this.playerNetwork.nodes)) {
+      if (node.gem && node.gem.spell_id === 'shield' && node.state === NodeState.OPEN) {
+        return node.gem;
+      }
     }
+    return null;
   }
 
   handleInput() {
     const mouse = this.input.getMousePos();
     const clicked = this.input.wasClicked();
     const clickPos = this.input.getClickPos();
-    const ps = this.state.player;
+    const isMouseDown = this.input.isMouseDown();
 
     // Update hover states
-    for (const [school, btn] of Object.entries(this.beamButtons)) {
+    for (const btn of Object.values(this.beamButtons)) {
       btn.updateHover(mouse.x, mouse.y);
     }
-    for (const btn of this.spellButtons) {
-      btn.updateHover(mouse.x, mouse.y);
-    }
+    this.leftArrow.updateHover(mouse.x, mouse.y);
+    this.bookBtn.updateHover(mouse.x, mouse.y);
+    this.rightArrow.updateHover(mouse.x, mouse.y);
+    this.shieldBtn.updateHover(mouse.x, mouse.y);
 
     // Beam switch hotkeys: Q=Order, W=Pure, E=Chaos, S=Neutral
     if (this.input.wasKeyPressed('q') || this.input.wasKeyPressed('Q')) {
@@ -96,32 +96,74 @@ export class CombatHUD {
       this.beamSwitcher.requestSwitch('neutral');
     }
 
-    if (!clicked) return;
-
-    // Handle targeting mode
-    if (this.spellCaster.targeting) {
-      const targetNodeId = this.enemyNetwork.getNodeAtPoint(clickPos.x, clickPos.y);
-      const spell = getSpell(this.spellCaster.targetingSpellId);
-
-      if (spell && spell.targeting === 'aoe_circle') {
-        // Fireball: click anywhere in enemy area
-        this.spellCaster.castSpell(this.spellCaster.targetingSpellId,
-          { x: clickPos.x, y: clickPos.y }, 'player');
-        this.spellCaster.cancelTargeting();
-        return;
-      }
-
-      if (targetNodeId) {
-        this.spellCaster.castSpell(this.spellCaster.targetingSpellId,
-          { nodeId: targetNodeId }, 'player');
-        this.spellCaster.cancelTargeting();
-        return;
-      }
-
-      // Click elsewhere cancels targeting
-      this.spellCaster.cancelTargeting();
-      return;
+    // Hold detection for book button
+    const overBook = this._pointInButton(this.bookBtn, mouse.x, mouse.y);
+    if (isMouseDown && overBook && !this.holdingBook && this.spellBook.isIdle()) {
+      this.holdingBook = true;
+      this.spellBook.startHold(this.spellCaster);
     }
+    if (this.holdingBook && (!isMouseDown || !overBook)) {
+      if (this.spellBook.isCharging()) {
+        this.spellBook.cancelHold();
+      }
+      // Suppress the click fired by mouse release so it doesn't immediately
+      // resolve/cancel the ready state when the player lifts off the book button
+      if (!isMouseDown) {
+        this.holdJustReleased = true;
+      }
+      this.holdingBook = false;
+    }
+
+    // Hold detection for shield button
+    const ps = this.state.player;
+    const shieldGem = this._findOpenShieldGem();
+    const overShield = this._pointInButton(this.shieldBtn, mouse.x, mouse.y);
+    if (isMouseDown && overShield && !this.holdingShield && !this.holdingBook &&
+        this.spellBook.isIdle() && shieldGem &&
+        ps.shield_state === 'down' &&
+        !this.spellCaster.isOnCooldown('shield', 'player')) {
+      this.holdingShield = true;
+      this.shieldChargeTimer = 0;
+    }
+    if (this.holdingShield && (!isMouseDown || !overShield)) {
+      this.holdingShield = false;
+      this.shieldChargeTimer = 0;
+    }
+    // Set / clear shield charge debuff every frame based on hold state
+    ps.shield_charge_debuff_active = this.holdingShield;
+    ps.shield_charge_debuff_amount = (this.holdingShield && shieldGem) ? shieldGem.spell_mana_debuff : 0;
+
+    // When spell is ready, handle targeting
+    if (this.spellBook.isReady()) {
+      if (clicked && !this.holdJustReleased) {
+        const entry = this.spellBook.activeSpellEntry;
+        if (entry) {
+          const bounds = this.enemyNetwork.getBounds();
+
+          if (entry.spell.targeting === 'single_node') {
+            const nodeId = this.enemyNetwork.getNodeAtPoint(clickPos.x, clickPos.y);
+            if (nodeId) {
+              this.spellBook.resolve({ nodeId }, this.spellCaster);
+            } else {
+              this.spellBook.cancelReady();
+            }
+          } else if (entry.spell.targeting === 'aoe_circle') {
+            if (this._pointInRect(clickPos.x, clickPos.y, bounds)) {
+              this.spellBook.resolve({ x: clickPos.x, y: clickPos.y }, this.spellCaster);
+            } else {
+              this.spellBook.cancelReady();
+            }
+          }
+          // 'immediate' spells auto-fire in SpellBook.update()
+        }
+      }
+      this.holdJustReleased = false;
+      return; // block all other clicks when ready
+    }
+
+    this.holdJustReleased = false;
+
+    if (!clicked) return;
 
     // Beam buttons
     for (const [school, btn] of Object.entries(this.beamButtons)) {
@@ -131,69 +173,54 @@ export class CombatHUD {
       }
     }
 
-    // Auto-channel checkboxes
-    for (const btn of this.spellButtons) {
-      const cbX = btn.x - 16;
-      const cbY = btn.y + 5;
-      if (clickPos.x >= cbX && clickPos.x <= cbX + 12 &&
-          clickPos.y >= cbY && clickPos.y <= cbY + 12) {
-        btn._autoChannel = !btn._autoChannel;
-        this.autoChannelFlags.set(btn._gemId, btn._autoChannel);
-        return;
-      }
-    }
-
-    // Spell buttons
-    for (const btn of this.spellButtons) {
-      if (btn.isClicked(clickPos.x, clickPos.y)) {
-        const node = this.playerNetwork.getNode(btn._nodeId);
-        if (!node) continue;
-
-        if (node.state === NodeState.OPEN && node.gem && node.gem.spell_id) {
-          // Request channel
-          this.channeling.requestChannel(btn._gemId);
-        } else if (node.state === NodeState.CHANNELED) {
-          // Cast or enter targeting
-          const spell = getSpell(btn._spellId);
-          if (!spell) continue;
-
-          if (spell.targeting === 'toggle') {
-            this.shield.toggleShield();
-          } else {
-            if (this.spellCaster.isOnCooldown(btn._spellId, 'player')) continue;
-            if (spell.targeting === 'single_node' || spell.targeting === 'aoe_circle') {
-              this.spellCaster.enterTargeting(btn._spellId, 'player');
-            } else if (spell.targeting === 'immediate') {
-              this.spellCaster.castSpell(btn._spellId, {}, 'player');
-            }
-          }
-        }
-        return;
-      }
-    }
-
-    // Click on player node network for awareness
-    const playerNodeId = this.playerNetwork.getNodeAtPoint(clickPos.x, clickPos.y);
-    if (playerNodeId) {
-      this.playerNetwork.setAwarenessTarget(playerNodeId);
+    // Arrow buttons (cycle spells)
+    if (this.leftArrow.isClicked(clickPos.x, clickPos.y)) {
+      this.spellBook.cycleLeft();
       return;
+    }
+    if (this.rightArrow.isClicked(clickPos.x, clickPos.y)) {
+      this.spellBook.cycleRight();
+      return;
+    }
+
+    // Click on player node network for awareness (only when not locked)
+    if (!this.spellBook.isNodeClickLocked()) {
+      const playerNodeId = this.playerNetwork.getNodeAtPoint(clickPos.x, clickPos.y);
+      if (playerNodeId) {
+        this.playerNetwork.setAwarenessTarget(playerNodeId);
+        return;
+      }
     }
   }
 
   update(dt) {
-    this._buildSpellButtons();
+    // Tick shield charge timer
+    if (this.holdingShield) {
+      const shieldGem = this._findOpenShieldGem();
+      if (shieldGem) {
+        this.shieldChargeTimer += dt;
+        if (this.shieldChargeTimer >= shieldGem.spell_charge_time) {
+          this.spellCaster.castSpell('shield', {}, 'player');
+          this.holdingShield = false;
+          this.shieldChargeTimer = 0;
+          this.state.player.shield_charge_debuff_active = false;
+          this.state.player.shield_charge_debuff_amount = 0;
+        }
+      } else {
+        // Gem was damaged mid-charge — cancel
+        this.holdingShield = false;
+        this.shieldChargeTimer = 0;
+        this.state.player.shield_charge_debuff_active = false;
+        this.state.player.shield_charge_debuff_amount = 0;
+      }
+    }
+
     this._updateButtonStates();
 
-    // Auto-channel logic
-    for (const btn of this.spellButtons) {
-      if (!btn._autoChannel) continue;
-      const node = this.playerNetwork.getNode(btn._nodeId);
-      if (!node || node.state !== NodeState.OPEN) continue;
-      if (!node.gem || !node.gem.spell_id) continue;
-      if (this.channeling.isGemChanneled(btn._gemId)) continue;
-      if (this.channeling.isPendingChannel(btn._gemId)) continue;
-      if (this.state.player.channeled_gems.length >= BALANCE.channeling.max_channeled_spells) continue;
-      this.channeling.requestChannel(btn._gemId);
+    // Cursor management
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+      canvas.style.cursor = this.spellBook.isReady() ? 'crosshair' : 'default';
     }
   }
 
@@ -207,38 +234,80 @@ export class CombatHUD {
       } else {
         const beamNode = SCHOOL_TO_NODE[school];
         const nodeOpen = this.playerNetwork.isNodeOpen(beamNode);
-        const isLocked = ps.locked_beam_types.includes(school);
-        btn.disabled = ps.beam_switch_state !== 'ready' || !nodeOpen || isLocked || ps.current_beam_school === school;
+        btn.disabled = ps.beam_switch_state !== 'ready' || !nodeOpen || ps.current_beam_school === school;
       }
     }
 
-    // Spell buttons (includes shield)
-    for (const btn of this.spellButtons) {
-      const node = this.playerNetwork.getNode(btn._nodeId);
-      if (!node) { btn.disabled = true; continue; }
+    // Spell book buttons
+    const availableSpells = this.spellBook.getAvailableSpells();
+    const entry = this.spellBook.getSelectedEntry();
+    const onCd = entry ? this.spellCaster.isOnCooldown(entry.spellId, 'player') : true;
 
-      if (node.state === NodeState.OPEN && node.gem && node.gem.spell_id) {
-        // Can channel
-        btn.disabled = this.state.player.channeled_gems.length >= BALANCE.channeling.max_channeled_spells;
-        btn.text = 'CH: ' + getSpell(node.gem.spell_id)?.name;
-        btn.color = '#335';
-      } else if (node.state === NodeState.CHANNELED) {
-        if (btn._spellId === 'shield') {
-          btn.disabled = false;
-          btn.text = ps.shield_state === 'up' ? 'Shield ON' :
-            ps.shield_state === 'recharging' ? 'Recharge' : 'Shield';
-          btn.color = '#055';
-        } else {
-          const onCd = this.spellCaster.isOnCooldown(btn._spellId, 'player');
-          btn.disabled = onCd;
-          btn.text = onCd ?
-            `${getSpell(btn._spellId)?.name} (${Math.ceil(this.spellCaster.getCooldownRemaining(btn._spellId, 'player'))}s)` :
-            getSpell(btn._spellId)?.name;
-          btn.color = '#553';
-        }
-      } else {
-        btn.disabled = true;
-        btn.text = getSpell(btn._spellId)?.name || '???';
+    this.leftArrow.disabled = availableSpells.length <= 1 || !this.spellBook.isIdle();
+    this.rightArrow.disabled = availableSpells.length <= 1 || !this.spellBook.isIdle();
+    this.bookBtn.disabled = !entry || onCd || !this.spellBook.isIdle();
+
+    if (this.spellBook.isCharging()) {
+      this.bookBtn.text = 'Charging';
+      this.bookBtn.color = '#553';
+    } else if (this.spellBook.isReady()) {
+      this.bookBtn.text = 'CAST!';
+      this.bookBtn.color = '#363';
+    } else {
+      this.bookBtn.text = entry ? 'Hold' : '---';
+      this.bookBtn.color = '#335';
+    }
+
+    // Shield button
+    const shieldOpen = this._findOpenShieldGem();
+    const shieldCd = this.spellCaster.getCooldownRemaining('shield', 'player');
+    const shieldReady = shieldOpen && ps.shield_state === 'down' && shieldCd <= 0;
+    this.shieldBtn.disabled = !shieldReady && !this.holdingShield;
+    if (!shieldOpen || ps.shield_state === 'unavailable') {
+      this.shieldBtn.text = 'Shield';
+      this.shieldBtn.color = '#333';
+    } else if (this.holdingShield) {
+      this.shieldBtn.text = 'Charging';
+      this.shieldBtn.color = '#553';
+    } else if (ps.shield_state === 'up') {
+      this.shieldBtn.text = `Up: ${ps.shield_duration_timer.toFixed(1)}s`;
+      this.shieldBtn.color = '#055';
+    } else if (shieldCd > 0) {
+      this.shieldBtn.text = `CD: ${shieldCd.toFixed(1)}s`;
+      this.shieldBtn.color = '#333';
+    } else {
+      this.shieldBtn.text = 'Hold';
+      this.shieldBtn.color = '#335';
+    }
+  }
+
+  // Renders coloured mana modifier chips anchored at (anchorX, y).
+  // Player side: items spread rightward, rightmost chip at anchorX (closest to centre).
+  // Enemy  side: items spread rightward, leftmost  chip at anchorX (closest to centre).
+  _renderManaBreakdown(renderer, breakdown, anchorX, y, side) {
+    if (!breakdown) return;
+
+    // Build ordered segment list: nodes → attunement → spell debuff → counter debuff → panic
+    const segs = [];
+    segs.push({ text: `${breakdown.nodes}n`,          color: '#999999' });
+    if (breakdown.spellDebuff   > 0) segs.push({ text: `-${breakdown.spellDebuff}sp`,   color: '#ffaa00' });
+    if (breakdown.counterDebuff > 0) segs.push({ text: `-${breakdown.counterDebuff}ctr`, color: '#ff4444' });
+    if (breakdown.panic         > 0) segs.push({ text: `+${breakdown.panic}!`,           color: '#ffd700' });
+
+    const step = 34; // px between chip centres
+
+    if (side === 'player') {
+      // Rightmost segment at anchorX, others spread left
+      const n = segs.length;
+      for (let i = 0; i < n; i++) {
+        const x = anchorX - (n - 1 - i) * step;
+        renderer.drawText(segs[i].text, x, y, segs[i].color, 9, 'center', 'middle');
+      }
+    } else {
+      // Leftmost segment at anchorX, others spread right
+      for (let i = 0; i < segs.length; i++) {
+        const x = anchorX + i * step;
+        renderer.drawText(segs[i].text, x, y, segs[i].color, 9, 'center', 'middle');
       }
     }
   }
@@ -269,11 +338,21 @@ export class CombatHUD {
     this.enemyStabilityBar.render(renderer);
     renderer.drawText(`Stability: ${Math.floor(es.stability)}%`, 752, 31, '#fff', 8);
 
-    // Mana display
+    // ── Centred mana panel ─────────────────────────────────────────
+    // Both sides anchored at x=480, player right-aligned, enemy left-aligned
+    const cx = 480;
+    const manaGap = 14; // px from centre to mana total
     const playerMana = ps.effective_mana !== undefined ? ps.effective_mana : 0;
-    const enemyMana = es.effective_mana !== undefined ? es.effective_mana : 0;
-    renderer.drawText(`Mana: ${playerMana}`, this.playerManaPos.x, this.playerManaPos.y, '#88ccff', 12);
-    renderer.drawText(`Mana: ${enemyMana}`, this.enemyManaPos.x, this.enemyManaPos.y, '#88ccff', 12);
+    const enemyMana  = es.effective_mana !== undefined ? es.effective_mana  : 0;
+
+    const pManaSize = Math.max(7, Math.min(22, Math.round(8 + playerMana * 1.3)));
+    const eManaSize = Math.max(7, Math.min(22, Math.round(8 + enemyMana  * 1.3)));
+    renderer.drawText(`Mana: ${playerMana}`, cx - manaGap, 106, '#88ccff', pManaSize, 'right', 'middle');
+    renderer.drawText(`Mana: ${enemyMana}`,  cx + manaGap, 106, '#88ccff', eManaSize, 'left',  'middle');
+
+    // Breakdown rows — player right-aligned, enemy left-aligned
+    this._renderManaBreakdown(renderer, ps.mana_breakdown, cx - manaGap, 120, 'player');
+    this._renderManaBreakdown(renderer, es.mana_breakdown, cx + manaGap, 120, 'enemy');
 
     // Current beam school
     const pSchoolColor = BALANCE.school.colors[ps.current_beam_school]?.hex || '#808080';
@@ -306,39 +385,81 @@ export class CombatHUD {
       btn.render(renderer);
     }
 
-    // Spell buttons with auto-channel checkboxes and channel progress bars
-    for (const btn of this.spellButtons) {
-      btn.render(renderer);
+    // ── Spell Book Widget ──────────────────────────────────────────
+    // Panel background
+    renderer.drawRect(183, 437, 116, 90, '#111', 0.7);
+    renderer.drawRectOutline(183, 437, 116, 90, '#444');
 
-      // Auto-channel checkbox
-      const cbX = btn.x - 16;
-      const cbY = btn.y + 5;
-      if (btn._autoChannel) {
-        renderer.drawRect(cbX, cbY, 12, 12, '#00cc44');
+    // Arrow buttons
+    this.leftArrow.render(renderer);
+    this.rightArrow.render(renderer);
+
+    // Book button
+    this.bookBtn.render(renderer);
+
+    // Spell name and element label
+    const entry = this.spellBook.getSelectedEntry();
+    if (entry) {
+      const elemColor = BALANCE.element.colors[entry.spell.element] || '#aaa';
+      renderer.drawText(entry.spell.name, 241, 476, elemColor, 10, 'center', 'middle');
+      // Cooldown indicator
+      const cd = this.spellCaster.getCooldownRemaining(entry.spellId, 'player');
+      if (cd > 0) {
+        renderer.drawText(`${cd.toFixed(1)}s`, 241, 488, '#ff4444', 9, 'center', 'middle');
       }
-      renderer.drawRectOutline(cbX, cbY, 12, 12, '#888');
+    } else {
+      renderer.drawText('No spells', 241, 476, '#555', 10, 'center', 'middle');
+    }
 
-      // Channel progress bar
-      const progress = this.channeling.getChannelProgress(btn._gemId);
-      if (progress) {
-        const fill = 1 - (progress.remaining / progress.total);
-        renderer.drawRect(btn.x, btn.y + 23, 90, 4, '#333');
-        renderer.drawRect(btn.x, btn.y + 23, Math.floor(90 * fill), 4, '#ffaa00');
+    // Charge progress bar (below arrows/book)
+    const progress = this.spellBook.getChargeProgress();
+    if (progress) {
+      const fill = 1 - (progress.remaining / progress.total);
+      renderer.drawRect(211, 495, 60, 4, '#222');
+      renderer.drawRect(211, 495, Math.floor(60 * fill), 4, '#ffaa00');
+    }
 
-        // Show remaining time on button text
-        const spell = getSpell(btn._spellId);
-        if (spell) {
-          btn.text = `${spell.name} (${progress.remaining.toFixed(1)}s)`;
+    // READY indicator
+    if (this.spellBook.isReady()) {
+      renderer.drawRect(211, 493, 60, 8, '#004400');
+      renderer.drawText('READY', 241, 497, '#00ff88', 9, 'center', 'middle');
+    }
+
+    // Shield button
+    this.shieldBtn.render(renderer);
+
+    // Shield charge progress bar
+    if (this.holdingShield) {
+      const sGem = this._findOpenShieldGem();
+      if (sGem) {
+        const fill = Math.min(1, this.shieldChargeTimer / sGem.spell_charge_time);
+        renderer.drawRect(211, 524, 60, 4, '#222');
+        renderer.drawRect(211, 524, Math.floor(60 * fill), 4, '#00ccff');
+      }
+    }
+
+    // ── Targeting overlays (when spell is ready) ──────────────────
+    if (this.spellBook.isReady()) {
+      const mouse = this.input.getMousePos();
+      const activeEntry = this.spellBook.activeSpellEntry;
+      if (activeEntry) {
+        if (activeEntry.spell.targeting === 'single_node') {
+          const nodeId = this.enemyNetwork.getNodeAtPoint(mouse.x, mouse.y);
+          if (nodeId) {
+            const node = this.enemyNetwork.getNode(nodeId);
+            renderer.drawCircleOutline(node.x, node.y, 14, '#00ff88', 2);
+          }
+        } else if (activeEntry.spell.targeting === 'aoe_circle') {
+          const bounds = this.enemyNetwork.getBounds();
+          if (this._pointInRect(mouse.x, mouse.y, bounds)) {
+            renderer.drawCircleOutline(mouse.x, mouse.y, activeEntry.spell.radius, '#ff880088', 2);
+            renderer.drawCircle(mouse.x, mouse.y, activeEntry.spell.radius, '#ff880022');
+          }
         }
       }
     }
 
     // Collision point indicator
     renderer.drawText(`Beam: ${Math.floor(this.state.collision_point)}%`, 440, 90, '#fff', 12, 'center');
-
-    // Targeting mode indicator
-    if (this.spellCaster.targeting) {
-      renderer.drawText('TARGETING - Click enemy node (or click elsewhere to cancel)', 480, 130, '#ffff00', 12, 'center');
-    }
   }
 }

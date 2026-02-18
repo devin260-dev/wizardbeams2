@@ -59,14 +59,7 @@ export const BALANCE = {
   },
 
   shield: {
-    mana_cost: 1.0,
-    recharge_time: 3.0,
-  },
-
-  channeling: {
-    max_channeled_spells: 2,
-    channel_time: 1.5,
-    unchannel_time: 0.0,
+    duration: 3.0,
   },
 
   nodes: {
@@ -84,8 +77,7 @@ export const BALANCE = {
       travel_speed: 375.0,
     },
     shield: {
-      mana_cost: 1.0,
-      recharge_time: 3.0,
+      cooldown: 10.0,
     },
     fireball: {
       radius: 40.0,
@@ -125,7 +117,6 @@ export const BALANCE = {
   floors: {
     awareness_speed: 100,       // ms minimum
     activation_speed: 0.5,      // seconds minimum
-    shield_recharge: 1.0,       // seconds minimum
     beam_switch: 0.5,           // seconds minimum
     spell_cooldown_reduction: 0.5, // 50% max reduction
     node_repair: 1.0,           // seconds minimum
@@ -134,7 +125,6 @@ export const BALANCE = {
   passives: {
     awareness_speed_bonus: -50.0,
     activation_speed_bonus: -0.25,
-    shield_recharge_bonus: -0.5,
     beam_switch_bonus: -0.5,
     spell_cooldown_bonus: -10.0,
     node_repair_bonus: -0.5,

@@ -37,9 +37,6 @@ export class BeamSwitcher {
     const beamNode = SCHOOL_TO_NODE[school];
     if (!this.nodeNetwork.isNodeOpen(beamNode)) return false;
 
-    // Check if school is locked out by channeled gems
-    if (s.locked_beam_types.includes(school)) return false;
-
     // Begin charging
     const bonus = this.nodeNetwork.getPassiveBonus('beam_switch');
     const chargeTime = Math.max(BALANCE.floors.beam_switch, BALANCE.beam_switch.charge_time + bonus);

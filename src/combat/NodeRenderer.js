@@ -13,7 +13,6 @@ const ELEMENT_COLORS = {
 const STATE_COLORS = {
   [NodeState.DORMANT]: '#333',
   [NodeState.OPEN]: '#aaa',
-  [NodeState.CHANNELED]: '#fff',
   [NodeState.DAMAGED]: '#cc0000',
 };
 
@@ -58,7 +57,7 @@ export class NodeRenderer {
       let color = STATE_COLORS[node.state] || '#333';
 
       // Beam type nodes get school color when open
-      if (isBeamType && (node.state === NodeState.OPEN || node.state === NodeState.CHANNELED)) {
+      if (isBeamType && node.state === NodeState.OPEN) {
         color = SCHOOL_NODE_COLORS[node.beam_school] || color;
       }
 
@@ -67,14 +66,8 @@ export class NodeRenderer {
         color = ELEMENT_COLORS[node.gem.element];
       }
 
-      // Channeled pulse
-      let alpha = 1;
-      if (node.state === NodeState.CHANNELED) {
-        alpha = 0.7 + 0.3 * Math.sin(this.pulseTimer * 4);
-      }
-
       // Draw node circle
-      r.drawCircle(node.x, node.y, radius, color, alpha);
+      r.drawCircle(node.x, node.y, radius, color);
 
       // Damaged: draw X
       if (node.state === NodeState.DAMAGED) {
@@ -94,8 +87,8 @@ export class NodeRenderer {
         r.drawCircle(node.x + radius, node.y - radius, 4, dotColor);
       }
 
-      // Spell indicator for channeled spell gems
-      if (node.state === NodeState.CHANNELED && node.gem && node.gem.spell_id) {
+      // Spell indicator for open spell gems (excluding shield)
+      if (node.state === NodeState.OPEN && node.gem && node.gem.spell_id && node.gem.spell_id !== 'shield') {
         r.drawCircleOutline(node.x, node.y, radius + 2, '#ffff00', 1);
       }
     }

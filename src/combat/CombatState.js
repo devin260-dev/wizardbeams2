@@ -3,7 +3,6 @@ import { BALANCE } from '../data/BalanceConfig.js';
 export const NodeState = {
   DORMANT: 'dormant',
   OPEN: 'open',
-  CHANNELED: 'channeled',
   DAMAGED: 'damaged',
 };
 
@@ -40,15 +39,19 @@ export class CombatState {
 
       // Shield
       shield_up: false,
-      shield_state: 'unavailable', // unavailable, down, up, recharging
-      shield_recharge_timer: 0,
+      shield_state: 'unavailable', // unavailable, down, up
+      shield_duration_timer: 0,
 
       // Stability
       stability: BALANCE.stability.max,
 
-      // Channeling
-      channeled_gems: [],
-      locked_beam_types: [],
+      // Spell book debuff (set by SpellBook.update())
+      spell_book_debuff_active: false,
+      spell_book_debuff_amount: 0,
+
+      // Shield hold debuff (set by CombatHUD while holding shield button)
+      shield_charge_debuff_active: false,
+      shield_charge_debuff_amount: 0,
 
       // HP
       hp: BALANCE.hp.starting_max,

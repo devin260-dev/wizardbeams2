@@ -1,29 +1,31 @@
 import { BALANCE } from '../data/BalanceConfig.js';
 
 export class BeamStruggle {
-  constructor(combatState, eventBus, playerNetwork, enemyNetwork, playerChanneling, enemyChanneling, elementSystem) {
+  constructor(combatState, eventBus, playerNetwork, enemyNetwork, elementSystem) {
     this.state = combatState;
     this.eventBus = eventBus;
     this.playerNetwork = playerNetwork;
     this.enemyNetwork = enemyNetwork;
-    this.playerChanneling = playerChanneling;
-    this.enemyChanneling = enemyChanneling;
     this.elementSystem = elementSystem;
   }
 
   getEffectiveMana(side) {
     const sideState = this.state[side];
     const network = side === 'player' ? this.playerNetwork : this.enemyNetwork;
-    const channeling = side === 'player' ? this.playerChanneling : this.enemyChanneling;
 
-    let mana = network.getNodeMana();
-    mana += 1; // element attunement bonus
-    if (channeling) {
-      mana -= channeling.getContinuousManaCost();
-    }
-    mana -= this._getCounterDebuff(side);
-    mana += sideState.panic_mana_bonus || 0;
-    return mana; // can be negative
+    const nodes = network.getNodeMana();
+    const attunement = 1;
+    const spellDebuff = (sideState.spell_book_debuff_active ? (sideState.spell_book_debuff_amount || 0) : 0)
+                      + (sideState.shield_charge_debuff_active ? (sideState.shield_charge_debuff_amount || 0) : 0);
+    const counterDebuff = this._getCounterDebuff(side);
+    const panic = sideState.panic_mana_bonus || 0;
+
+    const total = nodes + attunement - spellDebuff - counterDebuff + panic;
+
+    // Store breakdown so HUD can display individual modifiers
+    sideState.mana_breakdown = { nodes, attunement, spellDebuff, counterDebuff, panic };
+
+    return total; // can be negative
   }
 
   _getCounterDebuff(side) {

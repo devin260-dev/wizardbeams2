@@ -7,7 +7,7 @@ import { BeamSwitcher } from './BeamSwitcher.js';
 import { ElementSystem } from './ElementSystem.js';
 import { StabilitySystem } from './StabilitySystem.js';
 import { ShieldSystem } from './ShieldSystem.js';
-import { ChannelingSystem } from './ChannelingSystem.js';
+import { SpellBook } from './SpellBook.js';
 import { SpellCaster } from './SpellCaster.js';
 import { CombatHUD } from './CombatHUD.js';
 import { CombatAI } from './CombatAI.js';
@@ -33,8 +33,7 @@ export class CombatScreen {
     this.enemyStability = null;
     this.playerShield = null;
     this.enemyShield = null;
-    this.playerChanneling = null;
-    this.enemyChanneling = null;
+    this.playerSpellBook = null;
     this.spellCaster = null;
     this.combatHUD = null;
     this.combatAI = null;
@@ -98,29 +97,20 @@ export class CombatScreen {
     this.playerShield = new ShieldSystem(this.combatState.player, this.eventBus, this.playerNetwork, 'player');
     this.enemyShield = new ShieldSystem(this.combatState.enemy, this.eventBus, this.enemyNetwork, 'enemy');
 
-    // Create channeling systems
-    this.playerChanneling = new ChannelingSystem(
-      this.combatState.player, this.eventBus, this.playerNetwork,
-      this.playerBeamSwitcher, this.playerShield, 'player'
-    );
-    this.enemyChanneling = new ChannelingSystem(
-      this.combatState.enemy, this.eventBus, this.enemyNetwork,
-      this.enemyBeamSwitcher, this.enemyShield, 'enemy'
-    );
+    // Create spell book (player only)
+    this.playerSpellBook = new SpellBook(this.combatState.player, this.playerNetwork, 'player');
 
     // Create spell caster
     this.spellCaster = new SpellCaster(
       this.combatState, this.eventBus,
       this.playerNetwork, this.enemyNetwork,
-      this.playerShield, this.enemyShield,
-      this.playerChanneling, this.enemyChanneling
+      this.playerShield, this.enemyShield
     );
 
     // Create beam struggle
     this.beamStruggle = new BeamStruggle(
       this.combatState, this.eventBus,
       this.playerNetwork, this.enemyNetwork,
-      this.playerChanneling, this.enemyChanneling,
       this.playerElement
     );
 
@@ -128,7 +118,7 @@ export class CombatScreen {
     this.combatHUD = new CombatHUD(
       this.combatState, this.eventBus, this.input,
       this.playerNetwork, this.enemyNetwork,
-      this.playerBeamSwitcher, this.playerChanneling,
+      this.playerBeamSwitcher, this.playerSpellBook,
       this.spellCaster, this.playerShield
     );
 
@@ -136,7 +126,7 @@ export class CombatScreen {
     this.combatAI = new CombatAI(
       this.combatState, this.eventBus,
       this.enemyNetwork, this.playerNetwork,
-      this.enemyBeamSwitcher, this.enemyChanneling,
+      this.enemyBeamSwitcher,
       this.enemyShield, this.spellCaster, this.enemyData
     );
 
@@ -163,6 +153,15 @@ export class CombatScreen {
     }
   }
 
+  _findOpenShieldGem(network) {
+    for (const node of Object.values(network.nodes)) {
+      if (node.gem && node.gem.spell_id === 'shield' && node.state === 'open') {
+        return node.gem;
+      }
+    }
+    return null;
+  }
+
   update(dt) {
     if (this.input.wasKeyPressed(' ') && !this.combatState.combat_over) {
       this.paused = !this.paused;
@@ -185,8 +184,24 @@ export class CombatScreen {
     this.combatAI.update(dt);
     this.playerNetwork.update(dt);
     this.enemyNetwork.update(dt);
-    this.playerChanneling.update(dt);
-    this.enemyChanneling.update(dt);
+
+    // Shield availability: activate/deactivate based on whether shield gem node is Open
+    const pShieldOpen = this._findOpenShieldGem(this.playerNetwork);
+    if (pShieldOpen && this.combatState.player.shield_state === 'unavailable') {
+      this.playerShield.activate();
+    } else if (!pShieldOpen && this.combatState.player.shield_state !== 'unavailable') {
+      this.playerShield.deactivate();
+    }
+    const eShieldOpen = this._findOpenShieldGem(this.enemyNetwork);
+    if (eShieldOpen && this.combatState.enemy.shield_state === 'unavailable') {
+      this.enemyShield.activate();
+    } else if (!eShieldOpen && this.combatState.enemy.shield_state !== 'unavailable') {
+      this.enemyShield.deactivate();
+    }
+
+    // Spell book update (sets debuff flags read by BeamStruggle)
+    this.playerSpellBook.update(dt);
+
     this.playerBeamSwitcher.update(dt);
     this.enemyBeamSwitcher.update(dt);
     this.playerElement.update(dt);
@@ -226,7 +241,7 @@ export class CombatScreen {
     this.enemyNodeRenderer.render(this.enemyNetwork);
 
     // Projectiles
-    this.spellCaster.render(r, this.input.getMousePos());
+    this.spellCaster.render(r);
 
     // HUD
     this.combatHUD.render(r);

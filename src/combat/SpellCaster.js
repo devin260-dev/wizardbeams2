@@ -4,39 +4,21 @@ import { Projectile } from './Projectile.js';
 import { ElementSystem } from './ElementSystem.js';
 import { NodeState } from './CombatState.js';
 
+
 export class SpellCaster {
-  constructor(combatState, eventBus, playerNetwork, enemyNetwork, playerShield, enemyShield, playerChanneling, enemyChanneling) {
+  constructor(combatState, eventBus, playerNetwork, enemyNetwork, playerShield, enemyShield) {
     this.state = combatState;
     this.eventBus = eventBus;
     this.playerNetwork = playerNetwork;
     this.enemyNetwork = enemyNetwork;
     this.playerShield = playerShield;
     this.enemyShield = enemyShield;
-    this.playerChanneling = playerChanneling;
-    this.enemyChanneling = enemyChanneling;
 
     this.projectiles = [];
     this.cooldowns = { player: {}, enemy: {} };
 
-    // Targeting state (player only)
-    this.targeting = false;
-    this.targetingSpellId = null;
-    this.targetingSide = null;
-
     // Earth barrage staggered arrivals
     this.pendingRocks = [];
-  }
-
-  enterTargeting(spellId, side = 'player') {
-    this.targeting = true;
-    this.targetingSpellId = spellId;
-    this.targetingSide = side;
-  }
-
-  cancelTargeting() {
-    this.targeting = false;
-    this.targetingSpellId = null;
-    this.targetingSide = null;
   }
 
   isOnCooldown(spellId, side) {
@@ -54,27 +36,12 @@ export class SpellCaster {
     // Check cooldown
     if (this.isOnCooldown(spellId, casterSide)) return false;
 
-    // Check spell is channeled
-    const channeling = casterSide === 'player' ? this.playerChanneling : this.enemyChanneling;
-    const sideState = this.state[casterSide];
     const casterNetwork = casterSide === 'player' ? this.playerNetwork : this.enemyNetwork;
     const defenderNetwork = casterSide === 'player' ? this.enemyNetwork : this.playerNetwork;
+    const casterShield = casterSide === 'player' ? this.playerShield : this.enemyShield;
     const defenderShield = casterSide === 'player' ? this.enemyShield : this.playerShield;
     const defenderSide = casterSide === 'player' ? 'enemy' : 'player';
     const defenderState = this.state[defenderSide];
-
-    // Verify the spell gem is actually channeled
-    let isChanneled = false;
-    for (const gemId of sideState.channeled_gems) {
-      for (const node of Object.values(casterNetwork.nodes)) {
-        if (node.gem && node.gem.id === gemId && node.gem.spell_id === spellId) {
-          isChanneled = true;
-          break;
-        }
-      }
-      if (isChanneled) break;
-    }
-    if (!isChanneled) return false;
 
     // Apply cooldown with passive bonus
     const cooldownBonus = casterNetwork.getPassiveBonus('spell_cooldown');
@@ -90,6 +57,9 @@ export class SpellCaster {
 
     // Handle each spell type
     switch (spellId) {
+      case 'shield':
+        casterShield.raise();
+        break;
       case 'grey_bolt':
         this._castGreyBolt(spell, targetData, startX, startY, casterSide, defenderNetwork, defenderShield, defenderState, defenderSide);
         break;
@@ -400,19 +370,9 @@ export class SpellCaster {
     }
   }
 
-  render(renderer, mousePos) {
-    // Draw projectiles
+  render(renderer) {
     for (const proj of this.projectiles) {
       proj.render(renderer);
-    }
-
-    // Draw targeting overlay
-    if (this.targeting && mousePos) {
-      const spell = getSpell(this.targetingSpellId);
-      if (spell && spell.targeting === 'aoe_circle') {
-        renderer.drawCircleOutline(mousePos.x, mousePos.y, spell.radius, '#ff880088', 2);
-        renderer.drawCircle(mousePos.x, mousePos.y, spell.radius, '#ff880022');
-      }
     }
   }
 }
