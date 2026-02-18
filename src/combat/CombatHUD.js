@@ -48,6 +48,7 @@ export class CombatHUD {
     // Shield hold detection state
     this.holdingShield = false;
     this.shieldChargeTimer = 0;
+    this.shieldRaised = false; // true once charge completes and shield is up
   }
 
   _pointInButton(btn, x, y) {
@@ -125,9 +126,16 @@ export class CombatHUD {
       this.holdingShield = true;
       this.shieldChargeTimer = 0;
     }
-    if (this.holdingShield && (!isMouseDown || !overShield)) {
-      this.holdingShield = false;
-      this.shieldChargeTimer = 0;
+    if (this.holdingShield) {
+      // After shield is raised, only mouse-up drops it (can move cursor freely)
+      // Before shield is raised, moving off the button also cancels
+      const shouldCancel = this.shieldRaised ? !isMouseDown : (!isMouseDown || !overShield);
+      if (shouldCancel) {
+        if (this.shieldRaised) this.shield.lower();
+        this.holdingShield = false;
+        this.shieldChargeTimer = 0;
+        this.shieldRaised = false;
+      }
     }
     // Set / clear shield charge debuff every frame based on hold state
     ps.shield_charge_debuff_active = this.holdingShield;
@@ -194,22 +202,32 @@ export class CombatHUD {
   }
 
   update(dt) {
-    // Tick shield charge timer
+    // Tick shield charge timer / monitor raised shield
     if (this.holdingShield) {
       const shieldGem = this._findOpenShieldGem();
       if (shieldGem) {
-        this.shieldChargeTimer += dt;
-        if (this.shieldChargeTimer >= shieldGem.spell_charge_time) {
-          this.spellCaster.castSpell('shield', {}, 'player');
-          this.holdingShield = false;
-          this.shieldChargeTimer = 0;
-          this.state.player.shield_charge_debuff_active = false;
-          this.state.player.shield_charge_debuff_amount = 0;
+        if (!this.shieldRaised) {
+          // Still charging — tick timer
+          this.shieldChargeTimer += dt;
+          if (this.shieldChargeTimer >= shieldGem.spell_charge_time) {
+            this.spellCaster.castSpell('shield', {}, 'player');
+            this.shieldRaised = true; // keep holding; shield is now up
+          }
+        } else {
+          // Shield is raised — check if it dropped externally (duration or projectile)
+          if (this.state.player.shield_state !== 'up') {
+            this.holdingShield = false;
+            this.shieldChargeTimer = 0;
+            this.shieldRaised = false;
+            this.state.player.shield_charge_debuff_active = false;
+            this.state.player.shield_charge_debuff_amount = 0;
+          }
         }
       } else {
-        // Gem was damaged mid-charge — cancel
+        // Gem was damaged mid-hold — cancel
         this.holdingShield = false;
         this.shieldChargeTimer = 0;
+        this.shieldRaised = false;
         this.state.player.shield_charge_debuff_active = false;
         this.state.player.shield_charge_debuff_amount = 0;
       }
@@ -266,10 +284,14 @@ export class CombatHUD {
     if (!shieldOpen || ps.shield_state === 'unavailable') {
       this.shieldBtn.text = 'Shield';
       this.shieldBtn.color = '#333';
+    } else if (this.holdingShield && this.shieldRaised) {
+      this.shieldBtn.text = `Up: ${ps.shield_duration_timer.toFixed(1)}s`;
+      this.shieldBtn.color = '#055';
     } else if (this.holdingShield) {
       this.shieldBtn.text = 'Charging';
       this.shieldBtn.color = '#553';
     } else if (ps.shield_state === 'up') {
+      // shouldn't normally happen for player, but handle gracefully
       this.shieldBtn.text = `Up: ${ps.shield_duration_timer.toFixed(1)}s`;
       this.shieldBtn.color = '#055';
     } else if (shieldCd > 0) {

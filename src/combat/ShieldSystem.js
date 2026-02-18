@@ -34,6 +34,16 @@ export class ShieldSystem {
     return true;
   }
 
+  // Called when player voluntarily releases the shield button
+  lower() {
+    const s = this.sideState;
+    if (s.shield_state !== 'up') return;
+    s.shield_state = 'down';
+    s.shield_up = false;
+    s.shield_duration_timer = 0;
+    this.eventBus.emit('shield_state_changed', { side: this.side, state: 'down' });
+  }
+
   canBlock(spell) {
     return this.sideState.shield_state === 'up' && spell.is_projectile;
   }
