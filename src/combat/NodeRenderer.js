@@ -17,9 +17,16 @@ const STATE_COLORS = {
 };
 
 const SCHOOL_NODE_COLORS = {
-  pure:  '#eeeeee',
+  pure:  '#d4ae00',
   chaos: '#111111',
-  order: '#888888',
+  order: '#eeeeee',
+};
+
+const GEM_SCHOOL_PIP_COLORS = {
+  pure:    '#d4ae00',
+  chaos:   '#111111',
+  order:   '#eeeeee',
+  neutral: '#555555',
 };
 
 export class NodeRenderer {
@@ -69,6 +76,12 @@ export class NodeRenderer {
       // Draw node circle
       r.drawCircle(node.x, node.y, radius, color);
 
+      // School pip — small dot in centre when a gem is equipped
+      if (node.gem) {
+        const pipColor = GEM_SCHOOL_PIP_COLORS[node.gem.school] || '#555555';
+        r.drawCircle(node.x, node.y, 3, pipColor);
+      }
+
       // Damaged: draw X
       if (node.state === NodeState.DAMAGED) {
         r.drawLine(node.x - 5, node.y - 5, node.x + 5, node.y + 5, '#ff0000', 2);
@@ -87,8 +100,8 @@ export class NodeRenderer {
         r.drawCircle(node.x + radius, node.y - radius, 4, dotColor);
       }
 
-      // Spell indicator for open spell gems (excluding shield)
-      if (node.state === NodeState.OPEN && node.gem && node.gem.spell_id && node.gem.spell_id !== 'shield') {
+      // Spell indicator for all open spell gems
+      if (node.state === NodeState.OPEN && node.gem && node.gem.spell_id) {
         r.drawCircleOutline(node.x, node.y, radius + 2, '#ffff00', 1);
       }
     }

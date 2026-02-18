@@ -42,11 +42,13 @@ export class BeamStruggle {
     // Check if their beam beats my beam
     const counterMap = BALANCE.school.counter_map;
     if (counterMap[theirSchool] === mySchool) {
-      // I'm being countered
+      // I'm being countered — scale debuff by how many matching school gems the counter-er has Open
+      const gemCount = otherNetwork.countOpenGemsOfSchool(theirSchool);
+      const gemMultiplier = 1 + gemCount * BALANCE.school.gem_school_bonus_per_gem;
       if (otherNetwork.allManaNodesActive()) {
-        return BALANCE.school.counter_debuff_max;
+        return BALANCE.school.counter_debuff_max * gemMultiplier;
       }
-      return BALANCE.school.counter_debuff;
+      return BALANCE.school.counter_debuff * gemMultiplier;
     }
     return 0;
   }

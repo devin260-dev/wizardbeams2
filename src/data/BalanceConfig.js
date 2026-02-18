@@ -10,10 +10,11 @@ export const BALANCE = {
   school: {
     counter_debuff: 3.0,
     counter_debuff_max: 6.0,
+    gem_school_bonus_per_gem: 0.10, // 10% more effective counter debuff per matching Open gem
     colors: {
-      order: { r: 0.53, g: 0.53, b: 0.53, hex: '#888888' },
-      chaos: { r: 0.07, g: 0.07, b: 0.07, hex: '#111111' },
-      pure:  { r: 0.93, g: 0.93, b: 0.93, hex: '#eeeeee' },
+      order:   { r: 0.93, g: 0.93, b: 0.93, hex: '#eeeeee' },
+      chaos:   { r: 0.07, g: 0.07, b: 0.07, hex: '#111111' },
+      pure:    { r: 0.83, g: 0.68, b: 0.00, hex: '#d4ae00' },
       neutral: { r: 0.33, g: 0.33, b: 0.33, hex: '#555555' },
     },
     // RPS: order beats chaos, chaos beats pure, pure beats order

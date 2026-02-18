@@ -289,6 +289,16 @@ export class NodeNetwork {
   }
 
   // Check if all 10 mana-contributing nodes are Open
+  countOpenGemsOfSchool(school) {
+    let count = 0;
+    for (const node of Object.values(this.nodes)) {
+      if (node.state === NodeState.OPEN && node.gem && node.gem.school === school) {
+        count++;
+      }
+    }
+    return count;
+  }
+
   allManaNodesActive() {
     for (const id of [...GEM_SLOT_NODES, ...BEAM_TYPE_NODES]) {
       const node = this.nodes[id];
