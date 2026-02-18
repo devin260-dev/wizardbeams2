@@ -223,7 +223,7 @@ export class CombatScreen {
     const r = this.renderer;
 
     // Background
-    r.clear('#0a0a2a');
+    r.clear('#1a1a3a');
 
     // Wizard sprites (placeholder rectangles)
     this._drawWizard(r, BALANCE.wizard.player_position, false, this.combatState.player);

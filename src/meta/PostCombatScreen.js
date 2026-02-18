@@ -80,7 +80,7 @@ export class PostCombatScreen {
 
   render(ctx) {
     const r = this.renderer;
-    r.clear('#0a0a2a');
+    r.clear('#1a1a3a');
 
     r.drawText('VICTORY!', 480, 30, '#00cc00', 28, 'center');
     r.drawText(`Gold earned: +${this.goldReward}`, 480, 70, '#cccc44', 16, 'center');
