@@ -70,6 +70,13 @@ export class CombatAI {
     const network = this.enemyNetwork;
     if (network.awarenessPath.length > 0) return; // Already traveling
 
+    // Don't abandon a node that's more than 50% activated/repaired
+    const currentNode = network.nodes[network.awarenessNode];
+    if (currentNode && currentNode.activation_progress > 0.5 &&
+        (currentNode.state === NodeState.DORMANT || currentNode.state === NodeState.DAMAGED)) {
+      return;
+    }
+
     const es = this.state.enemy;
     const onNeutral = es.current_beam_school === 'neutral';
 

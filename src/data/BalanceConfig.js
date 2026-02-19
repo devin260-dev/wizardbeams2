@@ -153,7 +153,7 @@ export const BALANCE = {
       mana_bonus: 5,       // bonus effective mana during panic
       duration: 15.0,      // seconds panic lasts (once per fight)
     },
-    // Tier-dependent stats
+    // Tier-dependent stats (1 = starter, 2 = elite, 3 = boss, 4-5 = placeholder)
     tiers: {
       1: {
         hp: 20,
@@ -166,41 +166,50 @@ export const BALANCE = {
         activation_time_multiplier: 2.25,
       },
       2: {
-        hp: 25,
-        awareness_speed: 1200,
-        beam_types_unlocked: 2,
-        reaction_time: 1.5,
-        has_shield: true,
-        gem_count: 3,
-        decision_delay: 1.0,
-        activation_time_multiplier: 2.25,
+        hp: 20,
+        awareness_speed: 1238,
+        beam_types_unlocked: 1,
+        reaction_time: 2.0,
+        has_shield: false,
+        gem_count: 2,
+        decision_delay: 1.5,
+        activation_time_multiplier: 1.8,
       },
       3: {
-        hp: 30,
-        awareness_speed: 1050,
+        hp: 40,
+        awareness_speed: 375,
         beam_types_unlocked: 3,
-        reaction_time: 1.0,
+        reaction_time: 0.5,
         has_shield: true,
-        gem_count: 5,
-        decision_delay: 0.5,
+        gem_count: 6,
+        decision_delay: 0.3,
+        bonus_open_nodes: 1,
         activation_time_multiplier: 2.25,
       },
-    },
-    elite: {
-      hp_bonus: 10,
-      awareness_speed_bonus: -112,
-      extra_gems: 1,
-    },
-    boss: {
-      hp: 40,
-      awareness_speed: 375,
-      beam_types_unlocked: 3,
-      reaction_time: 0.5,
-      has_shield: true,
-      gem_count: 6,
-      decision_delay: 0.3,
-      bonus_open_nodes: 1,
-      activation_time_multiplier: 2.25,
+      4: {
+        // placeholder — balance TBD
+        hp: 40,
+        awareness_speed: 375,
+        beam_types_unlocked: 3,
+        reaction_time: 0.5,
+        has_shield: true,
+        gem_count: 6,
+        decision_delay: 0.3,
+        bonus_open_nodes: 1,
+        activation_time_multiplier: 2.25,
+      },
+      5: {
+        // placeholder — balance TBD
+        hp: 40,
+        awareness_speed: 375,
+        beam_types_unlocked: 3,
+        reaction_time: 0.5,
+        has_shield: true,
+        gem_count: 6,
+        decision_delay: 0.3,
+        bonus_open_nodes: 1,
+        activation_time_multiplier: 2.25,
+      },
     },
   },
 

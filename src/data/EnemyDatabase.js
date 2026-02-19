@@ -18,22 +18,12 @@ function shuffle(arr) {
   return a;
 }
 
-export function generateEnemy(tier, isElite = false, isBoss = false) {
-  const tierData = isBoss ? BALANCE.enemy.boss : BALANCE.enemy.tiers[tier];
-  if (!tierData) throw new Error(`Invalid tier: ${tier}`);
+export function generateEnemy(tier) {
+  const tierData = BALANCE.enemy.tiers[tier];
+  if (!tierData) throw new Error(`Invalid enemy tier: ${tier}`);
 
   const school_attunement = randomElement(SCHOOLS);
   const element_attunement = randomElement(ELEMENTS);
-
-  let hp = tierData.hp;
-  let awareness_speed = tierData.awareness_speed;
-  let gem_count = tierData.gem_count;
-
-  if (isElite && !isBoss) {
-    hp += BALANCE.enemy.elite.hp_bonus;
-    awareness_speed += BALANCE.enemy.elite.awareness_speed_bonus;
-    gem_count += BALANCE.enemy.elite.extra_gems;
-  }
 
   // Determine unlocked beam types
   const otherSchools = SCHOOLS.filter(s => s !== school_attunement);
@@ -44,13 +34,12 @@ export function generateEnemy(tier, isElite = false, isBoss = false) {
     beam_types_unlocked.push(shuffledOthers[i]);
   }
 
-  // Create gems - always include Grey Bolt
+  // Create gems — always include Grey Bolt
   const gems = [createGreyBolt()];
   if (tierData.has_shield) {
     gems.push(createShieldGem());
   }
-  // Add random gems up to gem_count
-  const additionalGems = Math.max(0, gem_count - gems.length);
+  const additionalGems = Math.max(0, tierData.gem_count - gems.length);
   for (let i = 0; i < additionalGems; i++) {
     gems.push(generateRandomGem(tier));
   }
@@ -65,9 +54,9 @@ export function generateEnemy(tier, isElite = false, isBoss = false) {
   return {
     school_attunement,
     element_attunement,
-    hp,
-    max_hp: hp,
-    awareness_speed,
+    hp: tierData.hp,
+    max_hp: tierData.hp,
+    awareness_speed: tierData.awareness_speed,
     beam_types_unlocked,
     reaction_time: tierData.reaction_time,
     has_shield: tierData.has_shield,
@@ -76,8 +65,7 @@ export function generateEnemy(tier, isElite = false, isBoss = false) {
     decision_delay: tierData.decision_delay,
     bonus_open_nodes: tierData.bonus_open_nodes || 0,
     activation_time_multiplier: tierData.activation_time_multiplier || 1.0,
-    is_elite: isElite,
-    is_boss: isBoss,
     tier,
+    is_boss: false, // stamped true by MapGenerator for the final boss node
   };
 }

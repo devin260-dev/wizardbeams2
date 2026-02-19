@@ -62,7 +62,7 @@ export function generateMap() {
     hidden: false,
     x: 100 + BALANCE.meta.tier_count * 250,
     y: 270,
-    enemyData: generateEnemy(BALANCE.meta.tier_count, false, true),
+    enemyData: (() => { const e = generateEnemy(3); e.is_boss = true; return e; })(),
   };
 
   // Connect tiers
@@ -79,9 +79,9 @@ export function generateMap() {
   for (const tier of tiers) {
     for (const node of tier) {
       if (node.type === 'duel') {
-        node.enemyData = generateEnemy(node.tier);
+        node.enemyData = generateEnemy(1);
       } else if (node.type === 'elite') {
-        node.enemyData = generateEnemy(node.tier, true);
+        node.enemyData = generateEnemy(2);
       }
     }
   }

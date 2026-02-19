@@ -31,8 +31,19 @@ export class StartScreen {
       air: new Button(560, 330, 100, 36, 'Air', { color: '#555566', hoverColor: '#8888aa', fontSize: 14 }),
     };
 
-    this.beginButton = new Button(380, 430, 200, 50, 'Begin Run', { color: '#224422', hoverColor: '#33aa33', fontSize: 20 });
-    this.devDuelButton = new Button(380, 490, 200, 36, 'Dev Duel', { color: '#443322', hoverColor: '#886644', fontSize: 16 });
+    this.beginButton = new Button(380, 400, 200, 50, 'Begin Run', { color: '#224422', hoverColor: '#33aa33', fontSize: 20 });
+    this.devDuelButton = new Button(380, 460, 200, 36, 'Dev Duel', { color: '#443322', hoverColor: '#886644', fontSize: 16 });
+
+    this.selectedDevTier = 1;
+    this.tierButtons = {};
+    const tierColors = ['#333322', '#332222', '#222233', '#223322', '#332233'];
+    const tierHovers = ['#666633', '#663333', '#333366', '#336633', '#663366'];
+    for (let t = 1; t <= 5; t++) {
+      this.tierButtons[t] = new Button(
+        370 + (t - 1) * 45, 505, 38, 28, `T${t}`,
+        { color: tierColors[t - 1], hoverColor: tierHovers[t - 1], fontSize: 13 }
+      );
+    }
   }
 
   enter() {
@@ -50,6 +61,7 @@ export class StartScreen {
     this.beginButton.updateHover(mouse.x, mouse.y);
     this.beginButton.disabled = !this.selectedSchool || !this.selectedElement;
     this.devDuelButton.updateHover(mouse.x, mouse.y);
+    for (const btn of Object.values(this.tierButtons)) btn.updateHover(mouse.x, mouse.y);
 
     if (!this.input.wasClicked()) return;
     const click = this.input.getClickPos();
@@ -75,6 +87,14 @@ export class StartScreen {
 
     if (this.devDuelButton.isClicked(click.x, click.y)) {
       this._startDevDuel();
+      return;
+    }
+
+    for (const [tier, btn] of Object.entries(this.tierButtons)) {
+      if (btn.isClicked(click.x, click.y)) {
+        this.selectedDevTier = Number(tier);
+        return;
+      }
     }
   }
 
@@ -109,8 +129,7 @@ export class StartScreen {
     runState.addGem(createGem('air', 'pure', 'spell_cooldown', BALANCE.passives.spell_cooldown_bonus, 'air_choke'));
     runState.addGem(createGem('water', 'pure', 'spell_cooldown', BALANCE.passives.spell_cooldown_bonus, 'water_beam'));
 
-    // Generate a tier 1 enemy
-    const enemyData = generateEnemy(1, false, false);
+    const enemyData = generateEnemy(this.selectedDevTier);
 
     // Go to loadout so player can equip gems before combat
     this.sceneManager.changeScene('loadout', { runState, enemyData, devMode: true });
@@ -149,6 +168,13 @@ export class StartScreen {
 
     this.beginButton.render(r);
     this.devDuelButton.render(r);
-    r.drawText('(skip to combat)', 480, 520, '#666', 11, 'center');
+
+    r.drawText('Enemy Tier:', 320, 519, '#666', 11, 'center');
+    for (const [tier, btn] of Object.entries(this.tierButtons)) {
+      btn.render(r);
+      if (this.selectedDevTier === Number(tier)) {
+        r.drawRectOutline(btn.x - 2, btn.y - 2, btn.w + 4, btn.h + 4, '#ffffff', 2);
+      }
+    }
   }
 }

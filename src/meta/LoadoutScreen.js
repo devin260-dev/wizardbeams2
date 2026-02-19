@@ -232,7 +232,7 @@ export class LoadoutScreen {
     // Enemy info
     if (this.enemyData) {
       r.drawText(`Enemy: ${this.enemyData.school_attunement} / ${this.enemyData.element_attunement}`, 100, 430, '#cc8888', 11, 'center');
-      r.drawText(`HP: ${this.enemyData.hp}  ${this.enemyData.is_elite ? 'ELITE' : ''} ${this.enemyData.is_boss ? 'BOSS' : ''}`,
+      r.drawText(`HP: ${this.enemyData.hp}  Tier ${this.enemyData.tier}${this.enemyData.is_boss ? ' (Boss)' : ''}`,
         100, 445, '#cc8888', 11, 'center');
     }
 
