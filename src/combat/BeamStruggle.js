@@ -15,15 +15,13 @@ export class BeamStruggle {
 
     const nodes = network.getNodeMana();
     const attunement = 1;
-    const spellDebuff = (sideState.spell_book_debuff_active ? (sideState.spell_book_debuff_amount || 0) : 0)
-                      + (sideState.shield_charge_debuff_active ? (sideState.shield_charge_debuff_amount || 0) : 0);
     const counterDebuff = this._getCounterDebuff(side);
     const panic = sideState.panic_mana_bonus || 0;
 
-    const total = nodes + attunement - spellDebuff - counterDebuff + panic;
+    const total = nodes + attunement - counterDebuff + panic;
 
     // Store breakdown so HUD can display individual modifiers
-    sideState.mana_breakdown = { nodes, attunement, spellDebuff, counterDebuff, panic };
+    sideState.mana_breakdown = { nodes, attunement, counterDebuff, panic };
 
     return total; // can be negative
   }

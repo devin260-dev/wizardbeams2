@@ -213,6 +213,16 @@ export const BALANCE = {
     },
   },
 
+  rune: {
+    min_point_count: 10,
+    recognition_threshold: 0.65,
+    num_resample_points: 64,
+    square_size: 250,
+    feedback_duration: 0.5,
+    trail_color: '#ffcc00',
+    trail_width: 2,
+  },
+
   wizard: {
     player_position: { x: 86, y: 236 },
     enemy_position: { x: 874, y: 236 },

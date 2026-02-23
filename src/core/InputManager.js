@@ -4,6 +4,9 @@ export class InputManager {
     this.mouseX = 0;
     this.mouseY = 0;
     this.mouseDown = false;
+    this.mouseJustPressed = false;
+    this.mouseDownX = 0;
+    this.mouseDownY = 0;
     this.clicked = false;
     this.clickX = 0;
     this.clickY = 0;
@@ -44,9 +47,12 @@ export class InputManager {
 
   _onMouseDown(e) {
     this.mouseDown = true;
+    this.mouseJustPressed = true;
     const pos = this._toGameCoords(e);
     this.mouseX = pos.x;
     this.mouseY = pos.y;
+    this.mouseDownX = pos.x;
+    this.mouseDownY = pos.y;
   }
 
   _onMouseUp(e) {
@@ -72,11 +78,20 @@ export class InputManager {
 
   resetFrame() {
     this.clicked = false;
+    this.mouseJustPressed = false;
     this.keysJustPressed = {};
   }
 
   isMouseDown() {
     return this.mouseDown;
+  }
+
+  wasMouseJustPressed() {
+    return this.mouseJustPressed;
+  }
+
+  getMouseDownPos() {
+    return { x: this.mouseDownX, y: this.mouseDownY };
   }
 
   getMousePos() {
