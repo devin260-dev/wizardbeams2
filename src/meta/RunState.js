@@ -33,11 +33,13 @@ export class RunState {
     this.gems_collected = 0;
     this.total_gold_earned = 0;
 
-    // Starting gems
+    // Starting gems — auto-slot into shoulder nodes
     const greyBolt = createGreyBolt();
     const shield = createShieldGem();
     this.gems.push(greyBolt);
     this.gems.push(shield);
+    this.gem_slots['left_shoulder'] = greyBolt.id;
+    this.gem_slots['right_shoulder'] = shield.id;
   }
 
   addGem(gem) {

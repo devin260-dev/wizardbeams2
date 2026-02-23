@@ -6,13 +6,15 @@ import { NodeState } from './CombatState.js';
 
 
 export class SpellCaster {
-  constructor(combatState, eventBus, playerNetwork, enemyNetwork, playerShield, enemyShield) {
+  constructor(combatState, eventBus, playerNetwork, enemyNetwork, playerShield, enemyShield, playerEffects = null, enemyEffects = null) {
     this.state = combatState;
     this.eventBus = eventBus;
     this.playerNetwork = playerNetwork;
     this.enemyNetwork = enemyNetwork;
     this.playerShield = playerShield;
     this.enemyShield = enemyShield;
+    this.playerEffects = playerEffects;
+    this.enemyEffects = enemyEffects;
 
     this.projectiles = [];
     this.cooldowns = { player: {}, enemy: {} };
@@ -43,10 +45,13 @@ export class SpellCaster {
     const defenderSide = casterSide === 'player' ? 'enemy' : 'player';
     const defenderState = this.state[defenderSide];
 
-    // Apply cooldown with passive bonus
-    const cooldownBonus = casterNetwork.getPassiveBonus('spell_cooldown');
+    // Apply cooldown with passive bonus + effects
+    const effects = casterSide === 'player' ? this.playerEffects : this.enemyEffects;
+    const cooldownBonus = casterNetwork.getPassiveBonus('spell_cooldown')
+                        + (effects ? effects.getAdditive('spell_cooldown') : 0);
     const cooldownReduction = Math.min(Math.abs(cooldownBonus) / 100, BALANCE.floors.spell_cooldown_reduction);
-    this.cooldowns[casterSide][spellId] = spell.cooldown * (1 - cooldownReduction);
+    const cooldownMult = effects ? effects.getMultiplier('spell_cooldown') : 1;
+    this.cooldowns[casterSide][spellId] = spell.cooldown * (1 - cooldownReduction) * cooldownMult;
 
     // Get caster staff position for projectile origin
     const isPlayer = casterSide === 'player';

@@ -1,29 +1,31 @@
 import { BALANCE } from '../data/BalanceConfig.js';
 
 export class BeamStruggle {
-  constructor(combatState, eventBus, playerNetwork, enemyNetwork, elementSystem) {
+  constructor(combatState, eventBus, playerNetwork, enemyNetwork, elementSystem, playerEffects = null, enemyEffects = null) {
     this.state = combatState;
     this.eventBus = eventBus;
     this.playerNetwork = playerNetwork;
     this.enemyNetwork = enemyNetwork;
     this.elementSystem = elementSystem;
+    this.playerEffects = playerEffects;
+    this.enemyEffects = enemyEffects;
   }
 
   getEffectiveMana(side) {
     const sideState = this.state[side];
     const network = side === 'player' ? this.playerNetwork : this.enemyNetwork;
+    const effects = side === 'player' ? this.playerEffects : this.enemyEffects;
 
     const nodes = network.getNodeMana();
     const attunement = 1;
-    const spellDebuff = (sideState.spell_book_debuff_active ? (sideState.spell_book_debuff_amount || 0) : 0)
-                      + (sideState.shield_charge_debuff_active ? (sideState.shield_charge_debuff_amount || 0) : 0);
     const counterDebuff = this._getCounterDebuff(side);
     const panic = sideState.panic_mana_bonus || 0;
+    const effectMana = effects ? effects.getAdditive('effective_mana') : 0;
 
-    const total = nodes + attunement - spellDebuff - counterDebuff + panic;
+    const total = nodes + attunement - counterDebuff + panic + effectMana;
 
     // Store breakdown so HUD can display individual modifiers
-    sideState.mana_breakdown = { nodes, attunement, spellDebuff, counterDebuff, panic };
+    sideState.mana_breakdown = { nodes, attunement, counterDebuff, panic, effectMana };
 
     return total; // can be negative
   }
@@ -63,14 +65,16 @@ export class BeamStruggle {
     this.state.player.effective_mana = playerMana;
     this.state.enemy.effective_mana = enemyMana;
 
-    const manaDiff = playerMana - enemyMana;
-
     // Element multiplier
     const elementMult = this.elementSystem.getElementMultiplier(
       this.state.player.dominant_element,
       this.state.enemy.dominant_element
     );
 
+    // Apply per-side push_rate effects (e.g. a debuff halving one side's push)
+    const playerPushMult = this.playerEffects ? this.playerEffects.getMultiplier('push_rate') : 1;
+    const enemyPushMult = this.enemyEffects ? this.enemyEffects.getMultiplier('push_rate') : 1;
+    const manaDiff = playerMana * playerPushMult - enemyMana * enemyPushMult;
     const pushForce = manaDiff * BALANCE.beam.push_rate * elementMult * dt;
     this.state.collision_point = Math.max(0, Math.min(100, this.state.collision_point + pushForce));
 

@@ -15,6 +15,7 @@ import { ShrineScreen } from './meta/ShrineScreen.js';
 import { RestScreen } from './meta/RestScreen.js';
 import { EventScreen } from './meta/EventScreen.js';
 import { GameOverScreen } from './meta/GameOverScreen.js';
+import { RuneTestScreen } from './dev/RuneTestScreen.js';
 
 // Initialize canvas
 const canvas = document.getElementById('gameCanvas');
@@ -38,6 +39,7 @@ sceneManager.register('shrine', new ShrineScreen(sceneManager, eventBus, inputMa
 sceneManager.register('rest', new RestScreen(sceneManager, eventBus, inputManager, renderer));
 sceneManager.register('event', new EventScreen(sceneManager, eventBus, inputManager, renderer));
 sceneManager.register('gameover', new GameOverScreen(sceneManager, eventBus, inputManager, renderer));
+sceneManager.register('runetest', new RuneTestScreen(sceneManager, eventBus, inputManager, renderer));
 
 // Start the game
 sceneManager.changeScene('start');

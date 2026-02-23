@@ -7,10 +7,12 @@ import { BeamSwitcher } from './BeamSwitcher.js';
 import { ElementSystem } from './ElementSystem.js';
 import { StabilitySystem } from './StabilitySystem.js';
 import { ShieldSystem } from './ShieldSystem.js';
-import { SpellBook } from './SpellBook.js';
+import { RuneRecognizer } from './RuneRecognizer.js';
+import { RuneDrawing } from './RuneDrawing.js';
 import { SpellCaster } from './SpellCaster.js';
 import { CombatHUD } from './CombatHUD.js';
 import { CombatAI } from './CombatAI.js';
+import { EffectSystem } from './EffectSystem.js';
 
 export class CombatScreen {
   constructor(sceneManager, eventBus, inputManager, renderer) {
@@ -33,10 +35,13 @@ export class CombatScreen {
     this.enemyStability = null;
     this.playerShield = null;
     this.enemyShield = null;
-    this.playerSpellBook = null;
+    this.runeRecognizer = null;
+    this.runeDrawing = null;
     this.spellCaster = null;
     this.combatHUD = null;
     this.combatAI = null;
+    this.playerEffects = null;
+    this.enemyEffects = null;
 
     this.runState = null;
     this.enemyData = null;
@@ -52,9 +57,13 @@ export class CombatScreen {
     this.combatState = new CombatState();
     this.combatState.reset(this.runState, this.enemyData);
 
+    // Create effect systems (one per combatant)
+    this.playerEffects = new EffectSystem();
+    this.enemyEffects = new EffectSystem();
+
     // Create node networks
-    this.playerNetwork = new NodeNetwork(false, this.eventBus, this.combatState.player);
-    this.enemyNetwork = new NodeNetwork(true, this.eventBus, this.combatState.enemy);
+    this.playerNetwork = new NodeNetwork(false, this.eventBus, this.combatState.player, this.playerEffects);
+    this.enemyNetwork = new NodeNetwork(true, this.eventBus, this.combatState.enemy, this.enemyEffects);
 
     // Initialize networks with gems and attunements
     this.playerNetwork.init(
@@ -82,8 +91,8 @@ export class CombatScreen {
     this.enemyNodeRenderer = new NodeRenderer(this.renderer);
 
     // Create beam switchers
-    this.playerBeamSwitcher = new BeamSwitcher(this.combatState.player, this.eventBus, this.playerNetwork, 'player');
-    this.enemyBeamSwitcher = new BeamSwitcher(this.combatState.enemy, this.eventBus, this.enemyNetwork, 'enemy');
+    this.playerBeamSwitcher = new BeamSwitcher(this.combatState.player, this.eventBus, this.playerNetwork, 'player', this.playerEffects);
+    this.enemyBeamSwitcher = new BeamSwitcher(this.combatState.enemy, this.eventBus, this.enemyNetwork, 'enemy', this.enemyEffects);
 
     // Create element systems
     this.playerElement = new ElementSystem(this.combatState.player, this.eventBus, this.playerNetwork, 'player');
@@ -97,28 +106,45 @@ export class CombatScreen {
     this.playerShield = new ShieldSystem(this.combatState.player, this.eventBus, this.playerNetwork, 'player');
     this.enemyShield = new ShieldSystem(this.combatState.enemy, this.eventBus, this.enemyNetwork, 'enemy');
 
-    // Create spell book (player only)
-    this.playerSpellBook = new SpellBook(this.combatState.player, this.playerNetwork, 'player');
-
     // Create spell caster
     this.spellCaster = new SpellCaster(
       this.combatState, this.eventBus,
       this.playerNetwork, this.enemyNetwork,
-      this.playerShield, this.enemyShield
+      this.playerShield, this.enemyShield,
+      this.playerEffects, this.enemyEffects
+    );
+
+    // Create rune recognizer
+    this.runeRecognizer = new RuneRecognizer({
+      numPoints: BALANCE.rune.num_resample_points,
+      squareSize: BALANCE.rune.square_size,
+      recognitionThreshold: BALANCE.rune.recognition_threshold,
+      minPointCount: BALANCE.rune.min_point_count,
+    });
+
+    // Create rune drawing system
+    this.runeDrawing = new RuneDrawing(
+      this.input,
+      this.runeRecognizer,
+      this.spellCaster,
+      this.playerNetwork,
+      this.enemyNetwork,
+      this.combatState.player
     );
 
     // Create beam struggle
     this.beamStruggle = new BeamStruggle(
       this.combatState, this.eventBus,
       this.playerNetwork, this.enemyNetwork,
-      this.playerElement
+      this.playerElement,
+      this.playerEffects, this.enemyEffects
     );
 
     // Create combat HUD
     this.combatHUD = new CombatHUD(
       this.combatState, this.eventBus, this.input,
       this.playerNetwork, this.enemyNetwork,
-      this.playerBeamSwitcher, this.playerSpellBook,
+      this.playerBeamSwitcher, this.runeDrawing,
       this.spellCaster, this.playerShield
     );
 
@@ -199,9 +225,6 @@ export class CombatScreen {
       this.enemyShield.deactivate();
     }
 
-    // Spell book update (sets debuff flags read by BeamStruggle)
-    this.playerSpellBook.update(dt);
-
     this.playerBeamSwitcher.update(dt);
     this.enemyBeamSwitcher.update(dt);
     this.playerElement.update(dt);
@@ -211,6 +234,8 @@ export class CombatScreen {
     this.playerShield.update(dt);
     this.enemyShield.update(dt);
     this.spellCaster.update(dt);
+    this.playerEffects.update(dt);
+    this.enemyEffects.update(dt);
     this.beamStruggle.update(dt);
     this.combatHUD.update(dt);
 
@@ -356,5 +381,7 @@ export class CombatScreen {
 
   exit() {
     this.eventBus.clear();
+    if (this.playerEffects) this.playerEffects.clear();
+    if (this.enemyEffects) this.enemyEffects.clear();
   }
 }

@@ -33,6 +33,7 @@ export class StartScreen {
 
     this.beginButton = new Button(380, 400, 200, 50, 'Begin Run', { color: '#224422', hoverColor: '#33aa33', fontSize: 20 });
     this.devDuelButton = new Button(380, 460, 200, 36, 'Dev Duel', { color: '#443322', hoverColor: '#886644', fontSize: 16 });
+    this.runeTestButton = new Button(600, 460, 120, 36, 'Rune Test', { color: '#222244', hoverColor: '#444488', fontSize: 13 });
 
     this.selectedDevTier = 1;
     this.tierButtons = {};
@@ -61,6 +62,7 @@ export class StartScreen {
     this.beginButton.updateHover(mouse.x, mouse.y);
     this.beginButton.disabled = !this.selectedSchool || !this.selectedElement;
     this.devDuelButton.updateHover(mouse.x, mouse.y);
+    this.runeTestButton.updateHover(mouse.x, mouse.y);
     for (const btn of Object.values(this.tierButtons)) btn.updateHover(mouse.x, mouse.y);
 
     if (!this.input.wasClicked()) return;
@@ -90,6 +92,11 @@ export class StartScreen {
       return;
     }
 
+    if (this.runeTestButton.isClicked(click.x, click.y)) {
+      this.sceneManager.changeScene('runetest');
+      return;
+    }
+
     for (const [tier, btn] of Object.entries(this.tierButtons)) {
       if (btn.isClicked(click.x, click.y)) {
         this.selectedDevTier = Number(tier);
@@ -102,11 +109,7 @@ export class StartScreen {
     const runState = new RunState();
     runState.startNewRun(this.selectedSchool, this.selectedElement);
 
-    // Auto-slot starting gems
-    const slots = GEM_SLOT_NODES;
-    for (let i = 0; i < runState.gems.length && i < slots.length; i++) {
-      runState.slotGem(runState.gems[i].id, slots[i]);
-    }
+    // Starting gems are auto-slotted into shoulder nodes by startNewRun
 
     // Generate map
     const mapData = generateMap();
@@ -168,6 +171,7 @@ export class StartScreen {
 
     this.beginButton.render(r);
     this.devDuelButton.render(r);
+    this.runeTestButton.render(r);
 
     r.drawText('Enemy Tier:', 320, 519, '#666', 11, 'center');
     for (const [tier, btn] of Object.entries(this.tierButtons)) {

@@ -64,10 +64,11 @@ const SCHOOL_TO_NODE = {
 };
 
 export class NodeNetwork {
-  constructor(isEnemy, eventBus, sideState) {
+  constructor(isEnemy, eventBus, sideState, effectSystem = null) {
     this.isEnemy = isEnemy;
     this.eventBus = eventBus;
     this.sideState = sideState;
+    this.effectSystem = effectSystem;
     this.side = isEnemy ? 'enemy' : 'player';
 
     // Node states
@@ -177,18 +178,24 @@ export class NodeNetwork {
 
   getEffectiveAwarenessSpeed() {
     const bonus = this.getPassiveBonus('awareness_speed');
-    return Math.max(BALANCE.floors.awareness_speed, this.awarenessSpeed + bonus);
+    const effectBonus = this.effectSystem ? this.effectSystem.getAdditive('awareness_speed') : 0;
+    const effectMult = this.effectSystem ? this.effectSystem.getMultiplier('awareness_speed') : 1;
+    return Math.max(BALANCE.floors.awareness_speed, (this.awarenessSpeed + bonus + effectBonus) * effectMult);
   }
 
   getEffectiveActivationTime() {
     const bonus = this.getPassiveBonus('activation_speed');
-    const base = (BALANCE.nodes.activation_time + bonus) * this.activationTimeMultiplier;
+    const effectBonus = this.effectSystem ? this.effectSystem.getAdditive('activation_speed') : 0;
+    const effectMult = this.effectSystem ? this.effectSystem.getMultiplier('activation_speed') : 1;
+    const base = (BALANCE.nodes.activation_time + bonus + effectBonus) * this.activationTimeMultiplier * effectMult;
     return Math.max(BALANCE.floors.activation_speed, base);
   }
 
   getEffectiveRepairTime() {
     const bonus = this.getPassiveBonus('node_repair');
-    const base = (BALANCE.nodes.repair_time + bonus) * this.activationTimeMultiplier;
+    const effectBonus = this.effectSystem ? this.effectSystem.getAdditive('node_repair') : 0;
+    const effectMult = this.effectSystem ? this.effectSystem.getMultiplier('node_repair') : 1;
+    const base = (BALANCE.nodes.repair_time + bonus + effectBonus) * this.activationTimeMultiplier * effectMult;
     return Math.max(BALANCE.floors.node_repair, base);
   }
 

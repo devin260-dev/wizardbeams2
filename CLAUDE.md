@@ -1,3 +1,11 @@
+# Workflow Rules
+
+- Always work on the `master` branch. Do not create feature branches.
+- Pull latest (`git pull`) before starting any new work.
+- Commit and push all changes before ending a session.
+
+---
+
 # Wizard Beams — Game Design Document v3 — FINAL
 
 ## Core Concept
