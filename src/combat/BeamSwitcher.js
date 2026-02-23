@@ -2,11 +2,12 @@ import { BALANCE } from '../data/BalanceConfig.js';
 import { SCHOOL_TO_NODE } from './NodeNetwork.js';
 
 export class BeamSwitcher {
-  constructor(sideState, eventBus, nodeNetwork, side) {
+  constructor(sideState, eventBus, nodeNetwork, side, effectSystem = null) {
     this.sideState = sideState;
     this.eventBus = eventBus;
     this.nodeNetwork = nodeNetwork;
     this.side = side;
+    this.effectSystem = effectSystem;
   }
 
   requestSwitch(school) {
@@ -39,7 +40,9 @@ export class BeamSwitcher {
 
     // Begin charging
     const bonus = this.nodeNetwork.getPassiveBonus('beam_switch');
-    const chargeTime = Math.max(BALANCE.floors.beam_switch, BALANCE.beam_switch.charge_time + bonus);
+    const effectBonus = this.effectSystem ? this.effectSystem.getAdditive('beam_switch') : 0;
+    const effectMult = this.effectSystem ? this.effectSystem.getMultiplier('beam_switch') : 1;
+    const chargeTime = Math.max(BALANCE.floors.beam_switch, (BALANCE.beam_switch.charge_time + bonus + effectBonus) * effectMult);
 
     s.beam_switch_state = 'charging';
     s.beam_switch_timer = chargeTime;
