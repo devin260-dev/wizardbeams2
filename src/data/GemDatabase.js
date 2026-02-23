@@ -19,27 +19,11 @@ const PASSIVE_STATS = [
 // Spells available for random gem generation (Pure school only for now)
 const SPELL_POOL = ['fireball', 'earth_barrage', 'air_choke', 'water_beam'];
 
-// Charge time (seconds to hold book button) and mana debuff per spell
-const SPELL_CHARGE_TIMES = {
-  grey_bolt: 1.5,
-  fireball: 2.5,
-  earth_barrage: 2.0,
-  air_choke: 2.0,
-  water_beam: 2.5,
-};
-const SPELL_MANA_DEBUFFS = {
-  grey_bolt: 2,
-  fireball: 3,
-  earth_barrage: 2,
-  air_choke: 2,
-  water_beam: 3,
-};
-
 function randomElement(arr) {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function createGem(element, school, passiveStat, passiveValue, spellId = '', spellChargeTime = 0, spellManaDebuff = 0) {
+export function createGem(element, school, passiveStat, passiveValue, spellId = '') {
   return {
     id: nextGemId(),
     element,
@@ -47,8 +31,6 @@ export function createGem(element, school, passiveStat, passiveValue, spellId = 
     passive_stat: passiveStat,
     passive_value: passiveValue,
     spell_id: spellId,
-    spell_charge_time: spellChargeTime,
-    spell_mana_debuff: spellManaDebuff,
     upgraded: false,
   };
 }
@@ -61,8 +43,6 @@ export function createGreyBolt() {
     passive_stat: 'spell_cooldown',
     passive_value: BALANCE.passives.spell_cooldown_bonus,
     spell_id: 'grey_bolt',
-    spell_charge_time: SPELL_CHARGE_TIMES.grey_bolt,
-    spell_mana_debuff: SPELL_MANA_DEBUFFS.grey_bolt,
     upgraded: false,
   };
 }
@@ -75,8 +55,6 @@ export function createShieldGem() {
     passive_stat: 'awareness_speed',
     passive_value: BALANCE.passives.awareness_speed_bonus,
     spell_id: 'shield',
-    spell_charge_time: 1.5,
-    spell_mana_debuff: 2,
     upgraded: false,
   };
 }
@@ -102,9 +80,7 @@ export function generateRandomGem(tier = 1) {
     }
   }
 
-  const chargeTime = SPELL_CHARGE_TIMES[spellId] || 0;
-  const manaDebuff = SPELL_MANA_DEBUFFS[spellId] || 0;
-  return createGem(element, school, passive.stat, passive.value, spellId, chargeTime, manaDebuff);
+  return createGem(element, school, passive.stat, passive.value, spellId);
 }
 
 export function generatePenaltyGem() {

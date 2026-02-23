@@ -5,14 +5,14 @@ import { SCHOOL_TO_NODE } from './NodeNetwork.js';
 
 export class CombatHUD {
   constructor(combatState, eventBus, inputManager, playerNetwork, enemyNetwork,
-    beamSwitcher, spellBook, spellCaster, shieldSystem) {
+    beamSwitcher, runeDrawing, spellCaster, shieldSystem) {
     this.state = combatState;
     this.eventBus = eventBus;
     this.input = inputManager;
     this.playerNetwork = playerNetwork;
     this.enemyNetwork = enemyNetwork;
     this.beamSwitcher = beamSwitcher;
-    this.spellBook = spellBook;
+    this.runeDrawing = runeDrawing;
     this.spellCaster = spellCaster;
     this.shield = shieldSystem;
 
@@ -24,14 +24,6 @@ export class CombatHUD {
       neutral: new Button(440, 520, 65, 24, 'Neutral', { color: '#2d2d2d', hoverColor: '#444444' }),
     };
 
-    // Spell book widget buttons (~x=186, y=440)
-    this.leftArrow = new Button(186, 447, 22, 22, '◄', { color: '#333', hoverColor: '#555', fontSize: 11 });
-    this.bookBtn = new Button(211, 440, 60, 32, 'Hold', { color: '#335', hoverColor: '#448', fontSize: 12 });
-    this.rightArrow = new Button(274, 447, 22, 22, '►', { color: '#333', hoverColor: '#555', fontSize: 11 });
-
-    // Shield button (separate toggle)
-    this.shieldBtn = new Button(211, 500, 60, 22, 'Shield', { color: '#444', hoverColor: '#666', fontSize: 12 });
-
     // HP bars
     this.playerHpBar = new PipBar(10, 10, 6, 14, BALANCE.hp.starting_max, { fgColor: '#cc0000', bgColor: '#440000' });
     this.enemyHpBar = new PipBar(560, 10, 6, 14, BALANCE.hp.starting_max, { fgColor: '#cc0000', bgColor: '#440000' });
@@ -39,15 +31,6 @@ export class CombatHUD {
     // Stability bars
     this.playerStabilityBar = new ProgressBar(10, 30, 200, 10, { fgColor: '#00cc00', bgColor: '#003300' });
     this.enemyStabilityBar = new ProgressBar(750, 30, 200, 10, { fgColor: '#00cc00', bgColor: '#003300' });
-
-
-    // Hold detection state
-    this.holdingBook = false;
-    this.holdJustReleased = false;
-
-    // Shield hold detection state
-    this.holdingShield = false;
-    this.shieldChargeTimer = 0;
   }
 
   _pointInButton(btn, x, y) {
@@ -67,20 +50,47 @@ export class CombatHUD {
     return null;
   }
 
+  /**
+   * Check if a point is over a valid target area for the current targeting spell.
+   * Prevents mouseDown from cancelling targeting when click is on a valid target.
+   */
+  _isOverTargetArea(x, y, spell) {
+    if (!spell) return false;
+    if (spell.targeting === 'single_node') {
+      return !!this.enemyNetwork.getNodeAtPoint(x, y);
+    }
+    if (spell.targeting === 'aoe_circle') {
+      const bounds = this.enemyNetwork.getBounds();
+      return this._pointInRect(x, y, bounds);
+    }
+    return false;
+  }
+
+  /**
+   * Check if a point is over any interactive HUD element (beam buttons, player nodes).
+   * Used to decide whether mouseDown should start rune drawing or be handled normally.
+   */
+  _isOverInteractive(x, y) {
+    // Beam buttons
+    for (const btn of Object.values(this.beamButtons)) {
+      if (this._pointInButton(btn, x, y)) return true;
+    }
+    // Player node network
+    if (this.playerNetwork.getNodeAtPoint(x, y)) return true;
+    return false;
+  }
+
   handleInput() {
     const mouse = this.input.getMousePos();
     const clicked = this.input.wasClicked();
     const clickPos = this.input.getClickPos();
     const isMouseDown = this.input.isMouseDown();
+    const justPressed = this.input.wasMouseJustPressed();
 
-    // Update hover states
+    // Update hover states for beam buttons
     for (const btn of Object.values(this.beamButtons)) {
       btn.updateHover(mouse.x, mouse.y);
     }
-    this.leftArrow.updateHover(mouse.x, mouse.y);
-    this.bookBtn.updateHover(mouse.x, mouse.y);
-    this.rightArrow.updateHover(mouse.x, mouse.y);
-    this.shieldBtn.updateHover(mouse.x, mouse.y);
 
     // Beam switch hotkeys: Q=Order, W=Pure, E=Chaos, S=Neutral
     if (this.input.wasKeyPressed('q') || this.input.wasKeyPressed('Q')) {
@@ -96,76 +106,64 @@ export class CombatHUD {
       this.beamSwitcher.requestSwitch('neutral');
     }
 
-    // Hold detection for book button
-    const overBook = this._pointInButton(this.bookBtn, mouse.x, mouse.y);
-    if (isMouseDown && overBook && !this.holdingBook && this.spellBook.isIdle()) {
-      this.holdingBook = true;
-      this.spellBook.startHold(this.spellCaster);
-    }
-    if (this.holdingBook && (!isMouseDown || !overBook)) {
-      if (this.spellBook.isCharging()) {
-        this.spellBook.cancelHold();
+    // ── Rune drawing state machine ──────────────────────────────────
+
+    // If currently drawing, accumulate points or finish on release
+    if (this.runeDrawing.isDrawing()) {
+      if (isMouseDown) {
+        this.runeDrawing.addPoint(mouse.x, mouse.y);
+      } else {
+        // Mouse released — attempt recognition
+        this.runeDrawing.finishDrawing();
       }
-      // Suppress the click fired by mouse release so it doesn't immediately
-      // resolve/cancel the ready state when the player lifts off the book button
-      if (!isMouseDown) {
-        this.holdJustReleased = true;
-      }
-      this.holdingBook = false;
+      return; // block all other input during drawing
     }
 
-    // Hold detection for shield button
-    const ps = this.state.player;
-    const shieldGem = this._findOpenShieldGem();
-    const overShield = this._pointInButton(this.shieldBtn, mouse.x, mouse.y);
-    if (isMouseDown && overShield && !this.holdingShield && !this.holdingBook &&
-        this.spellBook.isIdle() && shieldGem &&
-        ps.shield_state === 'down' &&
-        !this.spellCaster.isOnCooldown('shield', 'player')) {
-      this.holdingShield = true;
-      this.shieldChargeTimer = 0;
-    }
-    if (this.holdingShield && (!isMouseDown || !overShield)) {
-      const charged = shieldGem && this.shieldChargeTimer >= shieldGem.spell_charge_time;
-      // Mouse released or moved off — activate if charged, otherwise cancel silently
-      if (charged) this.spellCaster.castSpell('shield', {}, 'player');
-      this.holdingShield = false;
-      this.shieldChargeTimer = 0;
-    }
-    // Debuff active while charging OR while shield is up (persists until duration/destroyed)
-    const shieldDebuffActive = this.holdingShield || ps.shield_state === 'up';
-    ps.shield_charge_debuff_active = shieldDebuffActive;
-    ps.shield_charge_debuff_amount = shieldDebuffActive ? (shieldGem ? shieldGem.spell_mana_debuff : 2) : 0;
+    // If in targeting mode, handle target click
+    if (this.runeDrawing.isTargeting()) {
+      const spell = this.runeDrawing.getTargetingSpell();
 
-    // When spell is ready, handle targeting
-    if (this.spellBook.isReady()) {
-      if (clicked && !this.holdJustReleased) {
-        const entry = this.spellBook.activeSpellEntry;
-        if (entry) {
-          const bounds = this.enemyNetwork.getBounds();
-
-          if (entry.spell.targeting === 'single_node') {
-            const nodeId = this.enemyNetwork.getNodeAtPoint(clickPos.x, clickPos.y);
-            if (nodeId) {
-              this.spellBook.resolve({ nodeId }, this.spellCaster);
-            } else {
-              this.spellBook.cancelReady();
-            }
-          } else if (entry.spell.targeting === 'aoe_circle') {
-            if (this._pointInRect(clickPos.x, clickPos.y, bounds)) {
-              this.spellBook.resolve({ x: clickPos.x, y: clickPos.y }, this.spellCaster);
-            } else {
-              this.spellBook.cancelReady();
-            }
+      if (justPressed) {
+        // Check if mouseDown is on a valid target — if so, let the click resolve it
+        const isOnTarget = this._isOverTargetArea(mouse.x, mouse.y, spell);
+        if (!isOnTarget) {
+          // Not on a target — cancel targeting, optionally start drawing
+          this.runeDrawing.cancelTargeting();
+          if (!this._isOverInteractive(mouse.x, mouse.y)) {
+            this.runeDrawing.startDrawing(mouse.x, mouse.y);
           }
-          // 'immediate' spells auto-fire in SpellBook.update()
+          return;
         }
       }
-      this.holdJustReleased = false;
-      return; // block all other clicks when ready
+
+      if (clicked && spell) {
+        if (spell.targeting === 'single_node') {
+          const nodeId = this.enemyNetwork.getNodeAtPoint(clickPos.x, clickPos.y);
+          if (nodeId) {
+            this.runeDrawing.resolveTarget({ nodeId });
+          } else {
+            this.runeDrawing.cancelTargeting();
+          }
+        } else if (spell.targeting === 'aoe_circle') {
+          const bounds = this.enemyNetwork.getBounds();
+          if (this._pointInRect(clickPos.x, clickPos.y, bounds)) {
+            this.runeDrawing.resolveTarget({ x: clickPos.x, y: clickPos.y });
+          } else {
+            this.runeDrawing.cancelTargeting();
+          }
+        }
+      }
+      return; // block other clicks during targeting
     }
 
-    this.holdJustReleased = false;
+    // ── Start rune drawing on mouseDown in empty space ──────────────
+
+    if (justPressed && !this._isOverInteractive(mouse.x, mouse.y)) {
+      this.runeDrawing.startDrawing(mouse.x, mouse.y);
+      return;
+    }
+
+    // ── Normal click handling (beam buttons, node clicks) ───────────
 
     if (!clicked) return;
 
@@ -177,18 +175,8 @@ export class CombatHUD {
       }
     }
 
-    // Arrow buttons (cycle spells)
-    if (this.leftArrow.isClicked(clickPos.x, clickPos.y)) {
-      this.spellBook.cycleLeft();
-      return;
-    }
-    if (this.rightArrow.isClicked(clickPos.x, clickPos.y)) {
-      this.spellBook.cycleRight();
-      return;
-    }
-
-    // Click on player node network for awareness (only when not locked)
-    if (!this.spellBook.isNodeClickLocked()) {
+    // Click on player node network for awareness
+    if (!this.runeDrawing.isNodeClickLocked()) {
       const playerNodeId = this.playerNetwork.getNodeAtPoint(clickPos.x, clickPos.y);
       if (playerNodeId) {
         this.playerNetwork.setAwarenessTarget(playerNodeId);
@@ -198,26 +186,19 @@ export class CombatHUD {
   }
 
   update(dt) {
-    // Tick shield charge timer
-    if (this.holdingShield) {
-      const shieldGem = this._findOpenShieldGem();
-      if (shieldGem) {
-        this.shieldChargeTimer += dt;
-      } else {
-        // Gem was damaged mid-charge — cancel
-        this.holdingShield = false;
-        this.shieldChargeTimer = 0;
-        this.state.player.shield_charge_debuff_active = false;
-        this.state.player.shield_charge_debuff_amount = 0;
-      }
-    }
-
+    this.runeDrawing.update(dt);
     this._updateButtonStates();
 
     // Cursor management
     const canvas = document.querySelector('canvas');
     if (canvas) {
-      canvas.style.cursor = this.spellBook.isReady() ? 'crosshair' : 'default';
+      if (this.runeDrawing.isTargeting()) {
+        canvas.style.cursor = 'crosshair';
+      } else if (this.runeDrawing.isDrawing()) {
+        canvas.style.cursor = 'none';
+      } else {
+        canvas.style.cursor = 'default';
+      }
     }
   }
 
@@ -234,80 +215,25 @@ export class CombatHUD {
         btn.disabled = ps.beam_switch_state !== 'ready' || !nodeOpen || ps.current_beam_school === school;
       }
     }
-
-    // Spell book buttons
-    const availableSpells = this.spellBook.getAvailableSpells();
-    const entry = this.spellBook.getSelectedEntry();
-    const onCd = entry ? this.spellCaster.isOnCooldown(entry.spellId, 'player') : true;
-
-    this.leftArrow.disabled = availableSpells.length <= 1 || !this.spellBook.isIdle();
-    this.rightArrow.disabled = availableSpells.length <= 1 || !this.spellBook.isIdle();
-    this.bookBtn.disabled = !entry || onCd || !this.spellBook.isIdle();
-
-    if (this.spellBook.isCharging()) {
-      this.bookBtn.text = 'Charging';
-      this.bookBtn.color = '#553';
-    } else if (this.spellBook.isReady()) {
-      this.bookBtn.text = 'CAST!';
-      this.bookBtn.color = '#363';
-    } else {
-      this.bookBtn.text = entry ? 'Hold' : '---';
-      this.bookBtn.color = '#335';
-    }
-
-    // Shield button
-    const shieldOpen = this._findOpenShieldGem();
-    const shieldCd = this.spellCaster.getCooldownRemaining('shield', 'player');
-    const shieldReady = shieldOpen && ps.shield_state === 'down' && shieldCd <= 0;
-    this.shieldBtn.disabled = !shieldReady && !this.holdingShield;
-    if (!shieldOpen || ps.shield_state === 'unavailable') {
-      this.shieldBtn.text = 'Shield';
-      this.shieldBtn.color = '#333';
-    } else if (this.holdingShield) {
-      const charged = shieldOpen && this.shieldChargeTimer >= shieldOpen.spell_charge_time;
-      if (charged) {
-        this.shieldBtn.text = 'Release!';
-        this.shieldBtn.color = '#007a55';
-      } else {
-        this.shieldBtn.text = 'Charging';
-        this.shieldBtn.color = '#553';
-      }
-    } else if (ps.shield_state === 'up') {
-      this.shieldBtn.text = `Up: ${ps.shield_duration_timer.toFixed(1)}s`;
-      this.shieldBtn.color = '#055';
-    } else if (shieldCd > 0) {
-      this.shieldBtn.text = `CD: ${shieldCd.toFixed(1)}s`;
-      this.shieldBtn.color = '#333';
-    } else {
-      this.shieldBtn.text = 'Hold';
-      this.shieldBtn.color = '#335';
-    }
   }
 
-  // Renders coloured mana modifier chips anchored at (anchorX, y).
-  // Player side: items spread rightward, rightmost chip at anchorX (closest to centre).
-  // Enemy  side: items spread rightward, leftmost  chip at anchorX (closest to centre).
   _renderManaBreakdown(renderer, breakdown, anchorX, y, side) {
     if (!breakdown) return;
 
-    // Build ordered segment list: nodes → attunement → spell debuff → counter debuff → panic
     const segs = [];
     segs.push({ text: `${breakdown.nodes}n`,          color: '#999999' });
-    if (breakdown.spellDebuff   > 0) segs.push({ text: `-${breakdown.spellDebuff}sp`,   color: '#ffaa00' });
     if (breakdown.counterDebuff > 0) segs.push({ text: `-${breakdown.counterDebuff}ctr`, color: '#ff4444' });
     if (breakdown.panic         > 0) segs.push({ text: `+${breakdown.panic}!`,           color: '#ffd700' });
 
-    const step = 34; // px between chip centres
+    const step = 34;
 
     if (side === 'player') {
-      // Rightmost segment at anchorX, others spread left
       const n = segs.length;
       for (let i = 0; i < n; i++) {
         const x = anchorX - (n - 1 - i) * step;
         renderer.drawText(segs[i].text, x, y, segs[i].color, 9, 'center', 'middle');
       }
     } else {
-      // Leftmost segment at anchorX, others spread right
       for (let i = 0; i < segs.length; i++) {
         const x = anchorX + i * step;
         renderer.drawText(segs[i].text, x, y, segs[i].color, 9, 'center', 'middle');
@@ -342,9 +268,8 @@ export class CombatHUD {
     renderer.drawText(`Stability: ${Math.floor(es.stability)}%`, 752, 31, '#fff', 8);
 
     // ── Centred mana panel ─────────────────────────────────────────
-    // Both sides anchored at x=480, player right-aligned, enemy left-aligned
     const cx = 480;
-    const manaGap = 14; // px from centre to mana total
+    const manaGap = 14;
     const playerMana = ps.effective_mana !== undefined ? ps.effective_mana : 0;
     const enemyMana  = es.effective_mana !== undefined ? es.effective_mana  : 0;
 
@@ -353,7 +278,6 @@ export class CombatHUD {
     renderer.drawText(`Mana: ${playerMana}`, cx - manaGap, 106, '#88ccff', pManaSize, 'right', 'middle');
     renderer.drawText(`Mana: ${enemyMana}`,  cx + manaGap, 106, '#88ccff', eManaSize, 'left',  'middle');
 
-    // Breakdown rows — player right-aligned, enemy left-aligned
     this._renderManaBreakdown(renderer, ps.mana_breakdown, cx - manaGap, 120, 'player');
     this._renderManaBreakdown(renderer, es.mana_breakdown, cx + manaGap, 120, 'enemy');
 
@@ -388,75 +312,52 @@ export class CombatHUD {
       btn.render(renderer);
     }
 
-    // ── Spell Book Widget ──────────────────────────────────────────
-    // Panel background
+    // ── Spell Status Panel (replaces Spell Book Widget) ─────────────
     renderer.drawRect(183, 437, 116, 90, '#111', 0.7);
     renderer.drawRectOutline(183, 437, 116, 90, '#444');
 
-    // Arrow buttons
-    this.leftArrow.render(renderer);
-    this.rightArrow.render(renderer);
-
-    // Book button
-    this.bookBtn.render(renderer);
-
-    // Spell name and element label
-    const entry = this.spellBook.getSelectedEntry();
-    if (entry) {
-      const elemColor = BALANCE.element.colors[entry.spell.element] || '#aaa';
-      renderer.drawText(entry.spell.name, 241, 476, elemColor, 10, 'center', 'middle');
-      // Cooldown indicator
-      const cd = this.spellCaster.getCooldownRemaining(entry.spellId, 'player');
-      if (cd > 0) {
-        renderer.drawText(`${cd.toFixed(1)}s`, 241, 488, '#ff4444', 9, 'center', 'middle');
+    const spells = this.runeDrawing.getAvailableSpells();
+    if (spells.length > 0) {
+      let sy = 445;
+      for (const s of spells) {
+        const elemColor = BALANCE.element.colors[s.spell.element] || '#aaa';
+        const name = s.spell.name;
+        const cdText = s.cooldownRemaining > 0 ? ` ${s.cooldownRemaining.toFixed(1)}s` : '';
+        const color = s.cooldownRemaining > 0 ? '#ff4444' : elemColor;
+        renderer.drawText(`${name}${cdText}`, 191, sy, color, 9);
+        sy += 12;
       }
     } else {
-      renderer.drawText('No spells', 241, 476, '#555', 10, 'center', 'middle');
+      renderer.drawText('No spells', 241, 470, '#555', 10, 'center', 'middle');
     }
 
-    // Charge progress bar (below arrows/book)
-    const progress = this.spellBook.getChargeProgress();
-    if (progress) {
-      const fill = 1 - (progress.remaining / progress.total);
-      renderer.drawRect(211, 495, 60, 4, '#222');
-      renderer.drawRect(211, 495, Math.floor(60 * fill), 4, '#ffaa00');
+    // Shield status line
+    const shieldCd = this.spellCaster.getCooldownRemaining('shield', 'player');
+    if (ps.shield_state === 'up') {
+      renderer.drawText(`Shield Up: ${ps.shield_duration_timer.toFixed(1)}s`, 191, 515, '#00ccff', 9);
+    } else if (shieldCd > 0) {
+      renderer.drawText(`Shield CD: ${shieldCd.toFixed(1)}s`, 191, 515, '#ff4444', 9);
     }
 
-    // READY indicator
-    if (this.spellBook.isReady()) {
-      renderer.drawRect(211, 493, 60, 8, '#004400');
-      renderer.drawText('READY', 241, 497, '#00ff88', 9, 'center', 'middle');
-    }
+    // ── Rune drawing trail + feedback ───────────────────────────────
+    this.runeDrawing.render(renderer);
 
-    // Shield button
-    this.shieldBtn.render(renderer);
-
-    // Shield charge progress bar
-    if (this.holdingShield) {
-      const sGem = this._findOpenShieldGem();
-      if (sGem) {
-        const fill = Math.min(1, this.shieldChargeTimer / sGem.spell_charge_time);
-        renderer.drawRect(211, 524, 60, 4, '#222');
-        renderer.drawRect(211, 524, Math.floor(60 * fill), 4, '#00ccff');
-      }
-    }
-
-    // ── Targeting overlays (when spell is ready) ──────────────────
-    if (this.spellBook.isReady()) {
+    // ── Targeting overlays ──────────────────────────────────────────
+    if (this.runeDrawing.isTargeting()) {
       const mouse = this.input.getMousePos();
-      const activeEntry = this.spellBook.activeSpellEntry;
-      if (activeEntry) {
-        if (activeEntry.spell.targeting === 'single_node') {
+      const spell = this.runeDrawing.getTargetingSpell();
+      if (spell) {
+        if (spell.targeting === 'single_node') {
           const nodeId = this.enemyNetwork.getNodeAtPoint(mouse.x, mouse.y);
           if (nodeId) {
             const node = this.enemyNetwork.getNode(nodeId);
             renderer.drawCircleOutline(node.x, node.y, 14, '#00ff88', 2);
           }
-        } else if (activeEntry.spell.targeting === 'aoe_circle') {
+        } else if (spell.targeting === 'aoe_circle') {
           const bounds = this.enemyNetwork.getBounds();
           if (this._pointInRect(mouse.x, mouse.y, bounds)) {
-            renderer.drawCircleOutline(mouse.x, mouse.y, activeEntry.spell.radius, '#ff880088', 2);
-            renderer.drawCircle(mouse.x, mouse.y, activeEntry.spell.radius, '#ff880022');
+            renderer.drawCircleOutline(mouse.x, mouse.y, spell.radius, '#ff880088', 2);
+            renderer.drawCircle(mouse.x, mouse.y, spell.radius, '#ff880022');
           }
         }
       }

@@ -7,7 +7,8 @@ import { BeamSwitcher } from './BeamSwitcher.js';
 import { ElementSystem } from './ElementSystem.js';
 import { StabilitySystem } from './StabilitySystem.js';
 import { ShieldSystem } from './ShieldSystem.js';
-import { SpellBook } from './SpellBook.js';
+import { RuneRecognizer } from './RuneRecognizer.js';
+import { RuneDrawing } from './RuneDrawing.js';
 import { SpellCaster } from './SpellCaster.js';
 import { CombatHUD } from './CombatHUD.js';
 import { CombatAI } from './CombatAI.js';
@@ -33,7 +34,8 @@ export class CombatScreen {
     this.enemyStability = null;
     this.playerShield = null;
     this.enemyShield = null;
-    this.playerSpellBook = null;
+    this.runeRecognizer = null;
+    this.runeDrawing = null;
     this.spellCaster = null;
     this.combatHUD = null;
     this.combatAI = null;
@@ -97,14 +99,29 @@ export class CombatScreen {
     this.playerShield = new ShieldSystem(this.combatState.player, this.eventBus, this.playerNetwork, 'player');
     this.enemyShield = new ShieldSystem(this.combatState.enemy, this.eventBus, this.enemyNetwork, 'enemy');
 
-    // Create spell book (player only)
-    this.playerSpellBook = new SpellBook(this.combatState.player, this.playerNetwork, 'player');
-
     // Create spell caster
     this.spellCaster = new SpellCaster(
       this.combatState, this.eventBus,
       this.playerNetwork, this.enemyNetwork,
       this.playerShield, this.enemyShield
+    );
+
+    // Create rune recognizer
+    this.runeRecognizer = new RuneRecognizer({
+      numPoints: BALANCE.rune.num_resample_points,
+      squareSize: BALANCE.rune.square_size,
+      recognitionThreshold: BALANCE.rune.recognition_threshold,
+      minPointCount: BALANCE.rune.min_point_count,
+    });
+
+    // Create rune drawing system
+    this.runeDrawing = new RuneDrawing(
+      this.input,
+      this.runeRecognizer,
+      this.spellCaster,
+      this.playerNetwork,
+      this.enemyNetwork,
+      this.combatState.player
     );
 
     // Create beam struggle
@@ -118,7 +135,7 @@ export class CombatScreen {
     this.combatHUD = new CombatHUD(
       this.combatState, this.eventBus, this.input,
       this.playerNetwork, this.enemyNetwork,
-      this.playerBeamSwitcher, this.playerSpellBook,
+      this.playerBeamSwitcher, this.runeDrawing,
       this.spellCaster, this.playerShield
     );
 
@@ -198,9 +215,6 @@ export class CombatScreen {
     } else if (!eShieldOpen && this.combatState.enemy.shield_state !== 'unavailable') {
       this.enemyShield.deactivate();
     }
-
-    // Spell book update (sets debuff flags read by BeamStruggle)
-    this.playerSpellBook.update(dt);
 
     this.playerBeamSwitcher.update(dt);
     this.enemyBeamSwitcher.update(dt);

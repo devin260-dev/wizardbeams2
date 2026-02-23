@@ -45,14 +45,6 @@ export class CombatState {
       // Stability
       stability: BALANCE.stability.max,
 
-      // Spell book debuff (set by SpellBook.update())
-      spell_book_debuff_active: false,
-      spell_book_debuff_amount: 0,
-
-      // Shield hold debuff (set by CombatHUD while holding shield button)
-      shield_charge_debuff_active: false,
-      shield_charge_debuff_amount: 0,
-
       // HP
       hp: BALANCE.hp.starting_max,
       max_hp: BALANCE.hp.starting_max,
