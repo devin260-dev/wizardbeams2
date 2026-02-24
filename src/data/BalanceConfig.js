@@ -5,6 +5,7 @@ export const BALANCE = {
     beam_min_thickness: 4.0,
     beam_max_thickness: 22.0,
     max_mana: 11,
+    ricochet_reset_position: 25.0,
   },
 
   school: {

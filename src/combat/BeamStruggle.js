@@ -78,15 +78,32 @@ export class BeamStruggle {
     const pushForce = manaDiff * BALANCE.beam.push_rate * elementMult * dt;
     this.state.collision_point = Math.max(0, Math.min(100, this.state.collision_point + pushForce));
 
-    // Win check
+    // Ricochet check — beam reaching edge deals HP damage and resets
+    const resetPos = BALANCE.beam.ricochet_reset_position;
     if (this.state.collision_point >= 100) {
-      this.state.combat_over = true;
-      this.state.combat_result = 'player_win';
-      this.eventBus.emit('beam_overwhelm', { winner: 'player' });
+      const damage = playerMana;
+      this.state.enemy.hp -= damage;
+      this.eventBus.emit('beam_ricochet', { scorer: 'player', damage });
+      if (this.state.enemy.hp <= 0) {
+        this.state.enemy.hp = 0;
+        this.state.combat_over = true;
+        this.state.combat_result = 'player_win';
+        this.eventBus.emit('hp_death', { loser: 'enemy' });
+      } else {
+        this.state.collision_point = resetPos;
+      }
     } else if (this.state.collision_point <= 0) {
-      this.state.combat_over = true;
-      this.state.combat_result = 'enemy_win';
-      this.eventBus.emit('beam_overwhelm', { winner: 'enemy' });
+      const damage = enemyMana;
+      this.state.player.hp -= damage;
+      this.eventBus.emit('beam_ricochet', { scorer: 'enemy', damage });
+      if (this.state.player.hp <= 0) {
+        this.state.player.hp = 0;
+        this.state.combat_over = true;
+        this.state.combat_result = 'enemy_win';
+        this.eventBus.emit('hp_death', { loser: 'player' });
+      } else {
+        this.state.collision_point = 100 - resetPos;
+      }
     }
   }
 
