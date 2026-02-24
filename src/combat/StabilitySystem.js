@@ -3,11 +3,12 @@ import { NodeState } from './CombatState.js';
 import { GEM_SLOT_NODES, BEAM_TYPE_NODES, PATHWAY_NODES } from './NodeNetwork.js';
 
 export class StabilitySystem {
-  constructor(sideState, eventBus, nodeNetwork, side) {
+  constructor(sideState, eventBus, nodeNetwork, side, opponentState = null) {
     this.sideState = sideState;
     this.eventBus = eventBus;
     this.nodeNetwork = nodeNetwork;
     this.side = side;
+    this.opponentState = opponentState;
 
     // Listen for stability damage events
     this.eventBus.on('stability_damage', (data) => {
@@ -43,8 +44,12 @@ export class StabilitySystem {
   update(dt) {
     const s = this.sideState;
 
-    // Neutral drain / attack regen
-    if (s.current_beam_school === 'neutral') {
+    // Neutral drain / matching beam drain / attack regen
+    const opponentSchool = this.opponentState ? this.opponentState.current_beam_school : null;
+    const beamsMatch = s.current_beam_school !== 'neutral' && opponentSchool !== 'neutral'
+      && s.current_beam_school === opponentSchool;
+
+    if (s.current_beam_school === 'neutral' || beamsMatch) {
       s.stability -= BALANCE.stability.drain_rate * dt;
     } else {
       s.stability += BALANCE.stability.regen_rate * dt;

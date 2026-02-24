@@ -16,12 +16,11 @@ export class CombatHUD {
     this.spellCaster = spellCaster;
     this.shield = shieldSystem;
 
-    // Beam type buttons — Order, Pure, Chaos across top; Neutral beneath
+    // Beam type buttons — Order, Pure, Chaos
     this.beamButtons = {
       order: new Button(370, 494, 65, 24, 'Order', { color: '#555555', hoverColor: '#777777' }),
       pure: new Button(440, 494, 65, 24, 'Pure', { color: '#5a4400', hoverColor: '#7a6000' }),
       chaos: new Button(510, 494, 65, 24, 'Chaos', { color: '#111111', hoverColor: '#252525' }),
-      neutral: new Button(440, 520, 65, 24, 'Neutral', { color: '#2d2d2d', hoverColor: '#444444' }),
     };
 
     // HP bars
@@ -101,9 +100,6 @@ export class CombatHUD {
     }
     if (this.input.wasKeyPressed('e') || this.input.wasKeyPressed('E')) {
       this.beamSwitcher.requestSwitch('chaos');
-    }
-    if (this.input.wasKeyPressed('s') || this.input.wasKeyPressed('S')) {
-      this.beamSwitcher.requestSwitch('neutral');
     }
 
     // ── Rune drawing state machine ──────────────────────────────────
@@ -207,13 +203,9 @@ export class CombatHUD {
 
     // Beam buttons
     for (const [school, btn] of Object.entries(this.beamButtons)) {
-      if (school === 'neutral') {
-        btn.disabled = ps.beam_switch_state !== 'ready' || ps.current_beam_school === 'neutral';
-      } else {
-        const beamNode = SCHOOL_TO_NODE[school];
-        const nodeOpen = this.playerNetwork.isNodeOpen(beamNode);
-        btn.disabled = ps.beam_switch_state !== 'ready' || !nodeOpen || ps.current_beam_school === school;
-      }
+      const beamNode = SCHOOL_TO_NODE[school];
+      const nodeOpen = this.playerNetwork.isNodeOpen(beamNode);
+      btn.disabled = ps.beam_switch_state !== 'ready' || !nodeOpen || ps.current_beam_school === school;
     }
   }
 

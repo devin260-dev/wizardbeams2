@@ -78,24 +78,42 @@ export class CombatAI {
     }
 
     const es = this.state.enemy;
+    const ps = this.state.player;
+    const counterMap = BALANCE.school.counter_map;
     const onNeutral = es.current_beam_school === 'neutral';
+    const beamsMatch = !onNeutral && es.current_beam_school === ps.current_beam_school;
+    const beingCountered = !onNeutral && counterMap[ps.current_beam_school] === es.current_beam_school;
+    const needsEscape = onNeutral || beamsMatch || beingCountered;
 
-    // Priority 0: If stuck on neutral, prioritize opening a beam type node to escape
-    if (onNeutral) {
-      // First check if any beam type node is damaged — repair it
-      const damagedBeams = network.getDamagedNodes().filter(n =>
-        BEAM_TYPE_NODES.includes(n.id)
-      );
-      if (damagedBeams.length > 0) {
-        network.setAwarenessTarget(damagedBeams[0].id);
-        return;
+    // Priority 0: If being countered, matching beams, or on neutral — rush a beam node
+    // Prefer the counter beam node (the school that beats the player's current beam)
+    if (needsEscape) {
+      const counterSchool = Object.entries(counterMap).find(([k, v]) => v === ps.current_beam_school);
+      const preferredSchool = counterSchool ? counterSchool[0] : null;
+      const preferredNode = preferredSchool ? SCHOOL_TO_NODE[preferredSchool] : null;
+
+      // Check if preferred counter node needs repair or activation
+      if (preferredNode) {
+        const node = network.nodes[preferredNode];
+        if (node && node.state === NodeState.DAMAGED) {
+          network.setAwarenessTarget(preferredNode);
+          return;
+        }
+        if (node && node.state === NodeState.DORMANT) {
+          network.setAwarenessTarget(preferredNode);
+          return;
+        }
       }
-      // Then check for dormant beam type nodes to activate
-      const dormantBeams = network.getDormantNodes().filter(n =>
-        BEAM_TYPE_NODES.includes(n.id)
-      );
-      if (dormantBeams.length > 0) {
-        network.setAwarenessTarget(dormantBeams[0].id);
+
+      // Fallback: any beam node that's not our current school
+      const otherBeamNodes = BEAM_TYPE_NODES.filter(id => {
+        const node = network.nodes[id];
+        const school = Object.entries(SCHOOL_TO_NODE).find(([s, n]) => n === id);
+        return school && school[0] !== es.current_beam_school &&
+          (node.state === NodeState.DAMAGED || node.state === NodeState.DORMANT);
+      });
+      if (otherBeamNodes.length > 0) {
+        network.setAwarenessTarget(otherBeamNodes[0]);
         return;
       }
     }
@@ -145,8 +163,12 @@ export class CombatAI {
     const ps = this.state.player;
     const counterMap = BALANCE.school.counter_map;
 
-    // Top priority: escape neutral ASAP by switching to any available attack beam
-    if (es.current_beam_school === 'neutral') {
+    const onNeutral = es.current_beam_school === 'neutral';
+    const beamsMatch = !onNeutral && es.current_beam_school === ps.current_beam_school;
+    const beingCountered = !onNeutral && counterMap[ps.current_beam_school] === es.current_beam_school;
+
+    // Top priority: escape neutral, matching beams, or being countered
+    if (onNeutral || beamsMatch || beingCountered) {
       // Prefer the beam that counters the player
       const counterEntry = Object.entries(counterMap).find(([k, v]) => v === ps.current_beam_school);
       if (counterEntry && this._canSwitchTo(counterEntry[0], es)) {
@@ -154,7 +176,7 @@ export class CombatAI {
         this.reactionTimer = 0;
         return;
       }
-      // Otherwise take any available attack beam
+      // Otherwise take any available beam that's different from current
       for (const school of ['pure', 'order', 'chaos']) {
         if (this._canSwitchTo(school, es)) {
           this.beamSwitcher.requestSwitch(school);
@@ -162,29 +184,8 @@ export class CombatAI {
           return;
         }
       }
-      // No attack beam available — awareness AI will work on opening one
+      // No alternative beam available — awareness AI will work on opening one
       return;
-    }
-
-    // Am I being countered?
-    if (es.current_beam_school !== 'neutral' &&
-      counterMap[ps.current_beam_school] === es.current_beam_school) {
-      if (es.stability > 50) {
-        // Try to switch to counter player's beam
-        const counterBeam = Object.entries(counterMap).find(([k, v]) => v === ps.current_beam_school);
-        if (counterBeam) {
-          const beamSchool = counterBeam[0];
-          if (this._canSwitchTo(beamSchool, es)) {
-            this.beamSwitcher.requestSwitch(beamSchool);
-            this.reactionTimer = 0;
-            return;
-          }
-        }
-        // Can't counter, go neutral
-        this.beamSwitcher.requestSwitch('neutral');
-        this.reactionTimer = 0;
-        return;
-      }
     }
 
     // Can I counter the player?

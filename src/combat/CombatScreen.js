@@ -99,8 +99,8 @@ export class CombatScreen {
     this.enemyElement = new ElementSystem(this.combatState.enemy, this.eventBus, this.enemyNetwork, 'enemy');
 
     // Create stability systems
-    this.playerStability = new StabilitySystem(this.combatState.player, this.eventBus, this.playerNetwork, 'player');
-    this.enemyStability = new StabilitySystem(this.combatState.enemy, this.eventBus, this.enemyNetwork, 'enemy');
+    this.playerStability = new StabilitySystem(this.combatState.player, this.eventBus, this.playerNetwork, 'player', this.combatState.enemy);
+    this.enemyStability = new StabilitySystem(this.combatState.enemy, this.eventBus, this.enemyNetwork, 'enemy', this.combatState.player);
 
     // Create shield systems
     this.playerShield = new ShieldSystem(this.combatState.player, this.eventBus, this.playerNetwork, 'player');

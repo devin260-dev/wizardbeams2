@@ -19,19 +19,8 @@ export class BeamSwitcher {
     // Same school
     if (school === s.current_beam_school) return false;
 
-    if (school === 'neutral') {
-      // Voluntary neutral switch - instant
-      s.current_beam_school = 'neutral';
-      s.beam_switch_state = 'locked';
-      s.beam_switch_timer = BALANCE.beam_switch.neutral_lock_time;
-      s.beam_switch_target = null;
-      this.eventBus.emit('beam_switch_completed', { side: this.side, school: 'neutral' });
-      this.eventBus.emit('stability_damage', {
-        side: this.side,
-        amount: BALANCE.beam_switch.neutral_voluntary_stability,
-      });
-      return true;
-    }
+    // Cannot voluntarily switch to neutral
+    if (school === 'neutral') return false;
 
     // Attack beam switch
     // Check if beam node is Open
