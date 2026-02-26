@@ -249,16 +249,17 @@ export class RuneRecognizer {
   static getDefaultTemplates() {
     const templates = [];
 
-    // Grey Bolt — chevron / inverted V (bottom-left → peak → bottom-right)
+    // Grey Bolt — lightning bolt ⚡ (bottom-left → up-right → kink right → down-right)
     const bolt = [];
     const boltVerts = [
       { x: 0, y: 100 },   // bottom-left start
-      { x: 50, y: 0 },    // peak at top-center
-      { x: 100, y: 100 }, // bottom-right end
+      { x: 35, y: 10 },   // up-right
+      { x: 60, y: 45 },   // kink down-right
+      { x: 100, y: 100 }, // down-right to bottom
     ];
     for (let i = 0; i < boltVerts.length - 1; i++) {
-      for (let t = 0; t < 15; t++) {
-        const frac = t / 15;
+      for (let t = 0; t < 10; t++) {
+        const frac = t / 10;
         bolt.push({
           x: boltVerts[i].x + (boltVerts[i + 1].x - boltVerts[i].x) * frac,
           y: boltVerts[i].y + (boltVerts[i + 1].y - boltVerts[i].y) * frac,
