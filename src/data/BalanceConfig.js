@@ -242,6 +242,7 @@ export const BALANCE = {
     feedback_duration: 0.5,
     trail_color: '#ffcc00',
     trail_width: 2,
+    stabilizer_string_length: 18, // px — lazy mouse string length (0 = disabled)
   },
 
   wizard: {

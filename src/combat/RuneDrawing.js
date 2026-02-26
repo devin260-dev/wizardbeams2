@@ -34,6 +34,10 @@ export class RuneDrawing {
     this._state = 'idle'; // 'idle' | 'drawing' | 'targeting'
     this._drawnPoints = [];
 
+    // Lazy-mouse stabilizer ("string" smoothing)
+    this._brushX = 0;
+    this._brushY = 0;
+
     // Targeting state (after successful recognition of a targeted spell)
     this._targetingSpellId = null;
     this._targetingSpell = null;
@@ -73,15 +77,38 @@ export class RuneDrawing {
       this._targetingSpell = null;
     }
     this._state = 'drawing';
+    this._brushX = x;
+    this._brushY = y;
     this._drawnPoints = [{ x, y }];
   }
 
   /**
    * Record a point. Called every frame while mouse is down and we're drawing.
+   * Uses a lazy-mouse stabilizer: the brush trails behind the cursor on an
+   * invisible string, smoothing out hand jitter.
    */
   addPoint(x, y) {
     if (this._state !== 'drawing') return;
-    this._drawnPoints.push({ x, y });
+
+    const stringLen = BALANCE.rune.stabilizer_string_length;
+    if (stringLen <= 0) {
+      // Stabilizer disabled — raw input
+      this._drawnPoints.push({ x, y });
+      return;
+    }
+
+    const dx = x - this._brushX;
+    const dy = y - this._brushY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > stringLen) {
+      // Pull brush toward cursor, leaving a string-length gap
+      const pull = dist - stringLen;
+      this._brushX += (dx / dist) * pull;
+      this._brushY += (dy / dist) * pull;
+      this._drawnPoints.push({ x: this._brushX, y: this._brushY });
+    }
+    // If cursor is within string length, brush stays put (no new point)
   }
 
   /**
@@ -146,6 +173,13 @@ export class RuneDrawing {
     // Draw trail while drawing
     if (this._state === 'drawing' && this._drawnPoints.length >= 2) {
       renderer.drawPolyline(this._drawnPoints, BALANCE.rune.trail_color, BALANCE.rune.trail_width);
+
+      // Draw stabilizer string from brush to cursor
+      if (BALANCE.rune.stabilizer_string_length > 0) {
+        const mouse = this.input.getMousePos();
+        renderer.drawLine(this._brushX, this._brushY, mouse.x, mouse.y, 'rgba(255,204,0,0.25)', 1);
+        renderer.drawCircle(this._brushX, this._brushY, 2, '#ffcc00');
+      }
     }
 
     // Feedback flash
