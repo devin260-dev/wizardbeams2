@@ -249,13 +249,13 @@ export class RuneRecognizer {
   static getDefaultTemplates() {
     const templates = [];
 
-    // Grey Bolt — lightning bolt ⚡ (bottom-left → up-right → kink right → down-right)
+    // Grey Bolt — triangle-into-checkmark (up-right → across top → steep drop)
     const bolt = [];
     const boltVerts = [
       { x: 0, y: 100 },   // bottom-left start
-      { x: 35, y: 10 },   // up-right
-      { x: 60, y: 45 },   // kink down-right
-      { x: 100, y: 100 }, // down-right to bottom
+      { x: 30, y: 0 },    // up to peak
+      { x: 60, y: 15 },   // across top-right (triangle top, slight descent)
+      { x: 100, y: 100 }, // steep drop down-right (checkmark tail)
     ];
     for (let i = 0; i < boltVerts.length - 1; i++) {
       for (let t = 0; t < 10; t++) {
