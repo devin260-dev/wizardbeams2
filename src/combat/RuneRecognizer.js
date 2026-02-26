@@ -249,13 +249,13 @@ export class RuneRecognizer {
   static getDefaultTemplates() {
     const templates = [];
 
-    // Grey Bolt — triangle-into-checkmark (up-right → across top → steep drop)
+    // Grey Bolt — V with rising tail (up → valley → long upstroke to top-right)
     const bolt = [];
     const boltVerts = [
-      { x: 0, y: 100 },   // bottom-left start
-      { x: 30, y: 0 },    // up to peak
-      { x: 60, y: 15 },   // across top-right (triangle top, slight descent)
-      { x: 100, y: 100 }, // steep drop down-right (checkmark tail)
+      { x: 0, y: 80 },    // bottom-left start
+      { x: 25, y: 30 },   // small peak (up-right)
+      { x: 40, y: 90 },   // valley (sharp drop)
+      { x: 100, y: 0 },   // long rising stroke to top-right
     ];
     for (let i = 0; i < boltVerts.length - 1; i++) {
       for (let t = 0; t < 10; t++) {
