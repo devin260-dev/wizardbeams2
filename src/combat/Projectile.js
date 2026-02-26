@@ -9,7 +9,7 @@ const SPELL_COLORS = {
 };
 
 export class Projectile {
-  constructor(startX, startY, targetX, targetY, speed, spellData, targetNodeId, owner) {
+  constructor(startX, startY, targetX, targetY, speed, spellData, targetNodeId, owner, casterSchool = null) {
     this.x = startX;
     this.y = startY;
     this.targetX = targetX;
@@ -18,6 +18,7 @@ export class Projectile {
     this.spellData = spellData;
     this.targetNodeId = targetNodeId;
     this.owner = owner; // 'player' or 'enemy'
+    this.casterSchool = casterSchool; // beam school at time of cast (for school-typed bolts)
     this.arrived = false;
 
     const dx = targetX - startX;
@@ -48,7 +49,13 @@ export class Projectile {
 
   render(renderer) {
     if (this.arrived) return;
-    const color = SPELL_COLORS[this.spellData.element] || SPELL_COLORS[''];
+    // School-typed bolts use school color, others use element color
+    let color;
+    if (this.casterSchool && this.casterSchool !== 'neutral' && BALANCE.school.colors[this.casterSchool]) {
+      color = BALANCE.school.colors[this.casterSchool].hex;
+    } else {
+      color = SPELL_COLORS[this.spellData.element] || SPELL_COLORS[''];
+    }
     const size = this.spellData.id === 'fireball' ? 6 : (this.spellData.id === 'earth_barrage' ? 4 : 5);
     renderer.drawCircle(this.x, this.y, size, color);
     // Trail

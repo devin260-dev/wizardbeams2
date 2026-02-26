@@ -1,7 +1,6 @@
 import { BALANCE } from '../data/BalanceConfig.js';
 import { Button, ProgressBar, PipBar } from '../rendering/UIComponents.js';
 import { NodeState } from './CombatState.js';
-import { SCHOOL_TO_NODE } from './NodeNetwork.js';
 
 export class CombatHUD {
   constructor(combatState, eventBus, inputManager, playerNetwork, enemyNetwork,
@@ -16,11 +15,11 @@ export class CombatHUD {
     this.spellCaster = spellCaster;
     this.shield = shieldSystem;
 
-    // Beam type buttons — Order, Pure, Chaos
+    // Beam type buttons — triangle layout: Pure on top, Order bottom-left, Chaos bottom-right
     this.beamButtons = {
-      order: new Button(370, 494, 65, 24, 'Order', { color: '#555555', hoverColor: '#777777' }),
-      pure: new Button(440, 494, 65, 24, 'Pure', { color: '#5a4400', hoverColor: '#7a6000' }),
-      chaos: new Button(510, 494, 65, 24, 'Chaos', { color: '#111111', hoverColor: '#252525' }),
+      pure: new Button(440, 458, 65, 24, 'Pure', { color: '#5a4400', hoverColor: '#7a6000' }),
+      order: new Button(360, 506, 65, 24, 'Order', { color: '#555555', hoverColor: '#777777' }),
+      chaos: new Button(520, 506, 65, 24, 'Chaos', { color: '#111111', hoverColor: '#252525' }),
     };
 
     // HP bars
@@ -203,10 +202,46 @@ export class CombatHUD {
 
     // Beam buttons
     for (const [school, btn] of Object.entries(this.beamButtons)) {
-      const beamNode = SCHOOL_TO_NODE[school];
-      const nodeOpen = this.playerNetwork.isNodeOpen(beamNode);
+      const beamNode = this.playerNetwork.getNodeForSchool(school);
+      const nodeOpen = beamNode && this.playerNetwork.isNodeOpen(beamNode);
       btn.disabled = ps.beam_switch_state !== 'ready' || !nodeOpen || ps.current_beam_school === school;
     }
+  }
+
+  _drawBeamChevron(renderer, winnerBtn, loserBtn, color) {
+    // Draw a chevron (V) between two buttons, pointing toward the loser
+    const winCx = winnerBtn.x + winnerBtn.w / 2;
+    const winCy = winnerBtn.y + winnerBtn.h / 2;
+    const loseCx = loserBtn.x + loserBtn.w / 2;
+    const loseCy = loserBtn.y + loserBtn.h / 2;
+
+    // Midpoint between buttons
+    const mx = (winCx + loseCx) / 2;
+    const my = (winCy + loseCy) / 2;
+
+    // Direction from winner toward loser
+    const dx = loseCx - winCx;
+    const dy = loseCy - winCy;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    const nx = dx / len;
+    const ny = dy / len;
+
+    // Perpendicular
+    const px = -ny;
+    const py = nx;
+
+    // Chevron: tip points toward loser, two arms spread perpendicular
+    const tipX = mx + nx * 5;
+    const tipY = my + ny * 5;
+    const arm = 6;
+    const back = 6;
+    const arm1X = mx - nx * back + px * arm;
+    const arm1Y = my - ny * back + py * arm;
+    const arm2X = mx - nx * back - px * arm;
+    const arm2Y = my - ny * back - py * arm;
+
+    renderer.drawLine(arm1X, arm1Y, tipX, tipY, color, 1.5);
+    renderer.drawLine(arm2X, arm2Y, tipX, tipY, color, 1.5);
   }
 
   _renderManaBreakdown(renderer, breakdown, anchorX, y, side) {
@@ -215,6 +250,7 @@ export class CombatHUD {
     const segs = [];
     segs.push({ text: `${breakdown.nodes}n`,          color: '#999999' });
     if (breakdown.counterDebuff > 0) segs.push({ text: `-${breakdown.counterDebuff}ctr`, color: '#ff4444' });
+    if (breakdown.cooldownCost  > 0) segs.push({ text: `-${breakdown.cooldownCost}cd`,   color: '#ff8800' });
     if (breakdown.panic         > 0) segs.push({ text: `+${breakdown.panic}!`,           color: '#ffd700' });
 
     const step = 34;
@@ -287,22 +323,15 @@ export class CombatHUD {
       renderer.drawText(`Locked: ${ps.beam_switch_timer.toFixed(1)}s`, 10, 76, '#ff4400', 10);
     }
 
-    // Element indicators
-    const pElemColor = BALANCE.element.colors[ps.dominant_element] || '#888';
-    renderer.drawCircle(220, 55, 8, pElemColor);
-    renderer.drawText(ps.dominant_element || '?', 232, 50, '#fff', 10);
-    if (ps.element_shift_timer > 0) {
-      renderer.drawText(`→ ${ps.pending_dominant_element}`, 270, 50, '#ffff00', 10);
-    }
-
-    const eElemColor = BALANCE.element.colors[es.dominant_element] || '#888';
-    renderer.drawCircle(740, 55, 8, eElemColor);
-    renderer.drawText(es.dominant_element || '?', 752, 50, '#fff', 10);
-
-    // Beam buttons
+    // Beam buttons (triangle layout)
     for (const btn of Object.values(this.beamButtons)) {
       btn.render(renderer);
     }
+
+    // RPS chevrons between beam buttons: V points toward the loser
+    this._drawBeamChevron(renderer, this.beamButtons.pure, this.beamButtons.order, '#888');   // Pure > Order
+    this._drawBeamChevron(renderer, this.beamButtons.order, this.beamButtons.chaos, '#888');  // Order > Chaos
+    this._drawBeamChevron(renderer, this.beamButtons.chaos, this.beamButtons.pure, '#888');   // Chaos > Pure
 
     // ── Spell Status Panel (replaces Spell Book Widget) ─────────────
     renderer.drawRect(183, 437, 116, 90, '#111', 0.7);

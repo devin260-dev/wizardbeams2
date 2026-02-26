@@ -32,15 +32,11 @@ export class CombatState {
       beam_switch_timer: 0,
       beam_switch_target: null,
 
-      // Element
-      dominant_element: '',
-      element_shift_timer: 0,
-      pending_dominant_element: '',
-
       // Shield
       shield_up: false,
       shield_state: 'unavailable', // unavailable, down, up
       shield_duration_timer: 0,
+      shield_school: null, // beam school when shield was raised
 
       // Stability
       stability: BALANCE.stability.max,
@@ -51,7 +47,6 @@ export class CombatState {
 
       // Attunements
       school_attunement: 'pure',
-      element_attunement: 'fire',
 
       // Active drains (for Air Choke/Water Beam vs shield)
       active_stability_drains: [],
@@ -64,18 +59,14 @@ export class CombatState {
       state.hp = runState.hp;
       state.max_hp = runState.max_hp;
       state.school_attunement = runState.school_attunement;
-      state.element_attunement = runState.element_attunement;
       state.current_beam_school = runState.school_attunement;
-      state.dominant_element = runState.element_attunement;
     }
 
     if (enemyData) {
       state.hp = enemyData.hp;
       state.max_hp = enemyData.max_hp;
       state.school_attunement = enemyData.school_attunement;
-      state.element_attunement = enemyData.element_attunement;
       state.current_beam_school = enemyData.school_attunement;
-      state.dominant_element = enemyData.element_attunement;
     }
 
     return state;

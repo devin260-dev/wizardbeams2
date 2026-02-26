@@ -4,7 +4,26 @@
       "Bash(node:*)",
       "Bash(npx http-server:*)",
       "Bash(git init:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(gh auth status:*)",
+      "Bash(gh repo create:*)",
+      "Bash(npm install:*)",
+      "Bash(vercel:*)",
+      "Bash(npx vercel:*)",
+      "Bash(VERCEL_ORG_ID=team_BdTe9dYWZ8DepJ4rY4NqWV44 npx vercel link:*)",
+      "Bash(python3:*)",
+      "Bash(curl:*)",
+      "Bash(git push:*)",
+      "Bash(python -m http.server:*)",
+      "Bash(dir:*)",
+      "Bash(npx serve:*)",
+      "Bash(for f in src/combat/BeamStruggle.js src/combat/SpellBook.js src/combat/ShieldSystem.js src/combat/CombatState.js)",
+      "Bash(do echo \"Checking $f:\")",
+      "Bash(done)",
+      "Bash(echo:*)",
+      "Bash(powershell -Command \"\\(Get-Content src/meta/PostCombatScreen.js\\) -replace ''#0a0a2a'',''#1a1a3a'' | Set-Content src/meta/PostCombatScreen.js\")",
+      "mcp__Claude_Preview__preview_start"
     ]
   }
 }

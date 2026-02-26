@@ -4,7 +4,6 @@ import { createGreyBolt, createShieldGem } from '../data/GemDatabase.js';
 export class RunState {
   constructor() {
     this.school_attunement = 'pure';
-    this.element_attunement = 'fire';
     this.hp = BALANCE.hp.starting_max;
     this.max_hp = BALANCE.hp.starting_max;
     this.gold = 0;
@@ -18,9 +17,8 @@ export class RunState {
     this.total_gold_earned = 0;
   }
 
-  startNewRun(school, element) {
+  startNewRun(school) {
     this.school_attunement = school;
-    this.element_attunement = element;
     this.hp = BALANCE.hp.starting_max;
     this.max_hp = BALANCE.hp.starting_max;
     this.gold = 0;

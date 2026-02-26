@@ -1,7 +1,7 @@
 export const BALANCE = {
   beam: {
     collision_start: 50.0,
-    push_rate: 1.0,
+    push_rate: 0.7,
     beam_min_thickness: 4.0,
     beam_max_thickness: 22.0,
     max_mana: 11,
@@ -23,6 +23,14 @@ export const BALANCE = {
       order: 'chaos',   // order beats chaos
       chaos: 'pure',    // chaos beats pure
       pure: 'order',    // pure beats order
+    },
+    // School-typed bolt/shield interactions (stability damage to defender)
+    school_interaction: {
+      bolt_vs_shield_advantage: 60,      // % stability loss when bolt school beats shield school
+      bolt_vs_shield_same: 30,           // % stability loss when bolt and shield are same school
+      bolt_vs_node_advantage: 50,        // % stability loss when bolt school beats node school
+      bolt_vs_node_same: 30,             // % stability loss when bolt and node are same school
+      bolt_vs_node_advantage_hp_mult: 2, // HP damage multiplier when bolt school beats node school
     },
   },
 
@@ -65,20 +73,22 @@ export const BALANCE = {
   },
 
   nodes: {
-    activation_time: 2.5,
+    activation_time: 3.25,
     repair_time: 3.5,
-    awareness_travel_time: 413, // ms between adjacent nodes
+    awareness_travel_time: 537, // ms between adjacent nodes
     click_radius: 15,
   },
 
   spells: {
     grey_bolt: {
       mana_cost: 1.0,
+      cooldown_mana_cost: 1.0,
       hp_damage: 3,
       cooldown: 5.0,
       travel_speed: 375.0,
     },
     shield: {
+      cooldown_mana_cost: 1.0,
       cooldown: 10.0,
     },
     fireball: {
@@ -150,7 +160,7 @@ export const BALANCE = {
     grey_bolt_interval: 12.0,
     ai_decision_interval: 1.0,
     panic: {
-      threshold: 25,       // collision_point <= this triggers panic
+      threshold: 10,       // collision_point <= this triggers panic (distance from enemy's side)
       mana_bonus: 5,       // bonus effective mana during panic
       duration: 15.0,      // seconds panic lasts (once per fight)
     },
@@ -158,58 +168,68 @@ export const BALANCE = {
     tiers: {
       1: {
         hp: 20,
-        awareness_speed: 1350,
+        awareness_speed: 806,
         beam_types_unlocked: 1,
         reaction_time: 2.0,
-        has_shield: false,
-        gem_count: 1,
+        has_shield: true,
+        gem_count: 2,
         decision_delay: 1.5,
-        activation_time_multiplier: 2.25,
+        activation_time_multiplier: 1.5,
+        shield_reaction_time: 1.5,   // seconds to react to incoming projectile
+        shield_block_chance: 0.3,     // 30% chance to actually raise shield
       },
       2: {
         hp: 20,
-        awareness_speed: 1238,
+        awareness_speed: 698,
         beam_types_unlocked: 1,
         reaction_time: 2.0,
-        has_shield: false,
+        has_shield: true,
         gem_count: 2,
         decision_delay: 1.5,
-        activation_time_multiplier: 1.8,
+        activation_time_multiplier: 1.3,
+        shield_reaction_time: 1.0,
+        shield_block_chance: 0.5,
       },
       3: {
         hp: 40,
-        awareness_speed: 375,
+        awareness_speed: 537,
         beam_types_unlocked: 3,
         reaction_time: 0.5,
         has_shield: true,
         gem_count: 6,
         decision_delay: 0.3,
         bonus_open_nodes: 1,
-        activation_time_multiplier: 2.25,
+        activation_time_multiplier: 1.0,
+        shield_reaction_time: 0.4,
+        shield_block_chance: 0.75,
       },
       4: {
         // placeholder — balance TBD
         hp: 40,
-        awareness_speed: 375,
+        awareness_speed: 537,
         beam_types_unlocked: 3,
         reaction_time: 0.5,
         has_shield: true,
         gem_count: 6,
         decision_delay: 0.3,
         bonus_open_nodes: 1,
-        activation_time_multiplier: 2.25,
+        activation_time_multiplier: 1.0,
+        shield_reaction_time: 0.3,
+        shield_block_chance: 0.8,
       },
       5: {
         // placeholder — balance TBD
         hp: 40,
-        awareness_speed: 375,
+        awareness_speed: 537,
         beam_types_unlocked: 3,
         reaction_time: 0.5,
         has_shield: true,
         gem_count: 6,
         decision_delay: 0.3,
         bonus_open_nodes: 1,
-        activation_time_multiplier: 2.25,
+        activation_time_multiplier: 1.0,
+        shield_reaction_time: 0.25,
+        shield_block_chance: 0.85,
       },
     },
   },

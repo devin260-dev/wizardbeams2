@@ -1,6 +1,6 @@
 import { BALANCE } from '../data/BalanceConfig.js';
 import { NodeState } from './CombatState.js';
-import { SCHOOL_TO_NODE, GEM_SLOT_NODES, BEAM_TYPE_NODES } from './NodeNetwork.js';
+import { GEM_SLOT_NODES, BEAM_TYPE_NODES } from './NodeNetwork.js';
 
 export class CombatAI {
   constructor(combatState, eventBus, enemyNetwork, playerNetwork,
@@ -23,6 +23,11 @@ export class CombatAI {
     this.panicActive = false;
     this.panicTimer = 0;
     this.panicUsed = false;
+
+    // Shield reaction system
+    this.shieldReacting = false;     // true = noticed a projectile, counting down
+    this.shieldReactionTimer = 0;
+    this.shieldDecided = false;      // true = already rolled for this volley
   }
 
   update(dt) {
@@ -33,13 +38,15 @@ export class CombatAI {
     // Panic system
     this._updatePanic(dt);
 
+    // Shield runs every frame (needs fast reaction timing)
+    this._shieldAI(dt);
+
     if (this.decisionTimer < BALANCE.enemy.ai_decision_interval) return;
     this.decisionTimer = 0;
 
     const es = this.state.enemy;
 
     this._awarenessAI();
-    this._shieldAI(es);
     this._spellAI(es);
     this._beamAI(es);
   }
@@ -61,7 +68,6 @@ export class CombatAI {
         this.panicUsed = true;
         this.panicTimer = panicCfg.duration;
         es.panic_mana_bonus = panicCfg.mana_bonus;
-        this.enemyNetwork.awarenessSpeed = BALANCE.nodes.awareness_travel_time; // match player speed permanently
       }
     }
   }
@@ -90,7 +96,7 @@ export class CombatAI {
     if (needsEscape) {
       const counterSchool = Object.entries(counterMap).find(([k, v]) => v === ps.current_beam_school);
       const preferredSchool = counterSchool ? counterSchool[0] : null;
-      const preferredNode = preferredSchool ? SCHOOL_TO_NODE[preferredSchool] : null;
+      const preferredNode = preferredSchool ? network.getNodeForSchool(preferredSchool) : null;
 
       // Check if preferred counter node needs repair or activation
       if (preferredNode) {
@@ -108,8 +114,7 @@ export class CombatAI {
       // Fallback: any beam node that's not our current school
       const otherBeamNodes = BEAM_TYPE_NODES.filter(id => {
         const node = network.nodes[id];
-        const school = Object.entries(SCHOOL_TO_NODE).find(([s, n]) => n === id);
-        return school && school[0] !== es.current_beam_school &&
+        return node.beam_school && node.beam_school !== es.current_beam_school &&
           (node.state === NodeState.DAMAGED || node.state === NodeState.DORMANT);
       });
       if (otherBeamNodes.length > 0) {
@@ -118,17 +123,35 @@ export class CombatAI {
       }
     }
 
-    // Priority 1: Repair damaged nodes
+    // Priority 1: Repair damaged Grey Bolt / Shield nodes
+    const damagedCore = network.getDamagedNodes().filter(n =>
+      n.gem && (n.gem.spell_id === 'grey_bolt' || n.gem.spell_id === 'shield')
+    );
+    if (damagedCore.length > 0) {
+      network.setAwarenessTarget(damagedCore[0].id);
+      return;
+    }
+
+    // Priority 2: Activate dormant Grey Bolt / Shield nodes
+    const dormantCore = network.getDormantNodes().filter(n =>
+      GEM_SLOT_NODES.includes(n.id) && n.gem &&
+      (n.gem.spell_id === 'grey_bolt' || n.gem.spell_id === 'shield')
+    );
+    if (dormantCore.length > 0) {
+      network.setAwarenessTarget(dormantCore[0].id);
+      return;
+    }
+
+    // Priority 3: Repair other damaged nodes
     const damaged = network.getDamagedNodes();
     if (damaged.length > 0) {
-      // Prioritize spell gem nodes
       const spellDamaged = damaged.filter(n => n.gem && n.gem.spell_id);
       const target = spellDamaged.length > 0 ? spellDamaged[0] : damaged[0];
       network.setAwarenessTarget(target.id);
       return;
     }
 
-    // Priority 2: Activate dormant gem slot nodes with spells
+    // Priority 4: Activate other dormant spell gem nodes
     const dormantGems = network.getDormantNodes().filter(n =>
       GEM_SLOT_NODES.includes(n.id) && n.gem && n.gem.spell_id
     );
@@ -137,7 +160,7 @@ export class CombatAI {
       return;
     }
 
-    // Priority 3: Activate dormant gem slot nodes (for mana)
+    // Priority 5: Activate dormant gem slot nodes (for mana)
     const dormantSlots = network.getDormantNodes().filter(n =>
       GEM_SLOT_NODES.includes(n.id)
     );
@@ -146,7 +169,7 @@ export class CombatAI {
       return;
     }
 
-    // Priority 4: Activate dormant beam type nodes
+    // Priority 6: Activate dormant beam type nodes
     const dormantBeams = network.getDormantNodes().filter(n =>
       BEAM_TYPE_NODES.includes(n.id)
     );
@@ -204,13 +227,50 @@ export class CombatAI {
 
   _canSwitchTo(school, es) {
     if (school === es.current_beam_school) return false;
-    const beamNode = SCHOOL_TO_NODE[school];
-    return this.enemyNetwork.isNodeOpen(beamNode);
+    const beamNode = this.enemyNetwork.getNodeForSchool(school);
+    return beamNode && this.enemyNetwork.isNodeOpen(beamNode);
   }
 
-  _shieldAI(es) {
-    // Cast shield when gem is available (down) and not on cooldown
-    if (es.shield_state === 'down' && !this.spellCaster.isOnCooldown('shield', 'enemy')) {
+  _shieldAI(dt) {
+    const es = this.state.enemy;
+    const tierData = BALANCE.enemy.tiers[this.enemyData.tier] || {};
+
+    // Shield must be available (gem Open, state 'down', off cooldown)
+    if (es.shield_state !== 'down' || this.spellCaster.isOnCooldown('shield', 'enemy')) {
+      this.shieldReacting = false;
+      this.shieldDecided = false;
+      return;
+    }
+
+    // Check for incoming projectiles
+    const hasIncoming = this.spellCaster.projectiles.some(p => p.owner === 'player')
+      || this.spellCaster.pendingRocks.some(r => r.casterSide === 'player');
+
+    if (!hasIncoming) {
+      // Nothing incoming — reset so we can react to the next volley
+      this.shieldReacting = false;
+      this.shieldDecided = false;
+      return;
+    }
+
+    // Already decided not to block this volley
+    if (this.shieldDecided) return;
+
+    // Start reacting if we haven't yet
+    if (!this.shieldReacting) {
+      this.shieldReacting = true;
+      this.shieldReactionTimer = tierData.shield_reaction_time || 1.0;
+      return;
+    }
+
+    // Count down reaction time
+    this.shieldReactionTimer -= dt;
+    if (this.shieldReactionTimer > 0) return;
+
+    // Reaction time elapsed — roll to see if we actually block
+    this.shieldDecided = true;
+    const chance = tierData.shield_block_chance || 0.5;
+    if (Math.random() < chance) {
       this.spellCaster.castSpell('shield', {}, 'enemy');
     }
   }

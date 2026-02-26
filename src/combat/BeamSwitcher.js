@@ -1,5 +1,4 @@
 import { BALANCE } from '../data/BalanceConfig.js';
-import { SCHOOL_TO_NODE } from './NodeNetwork.js';
 
 export class BeamSwitcher {
   constructor(sideState, eventBus, nodeNetwork, side, effectSystem = null) {
@@ -24,8 +23,8 @@ export class BeamSwitcher {
 
     // Attack beam switch
     // Check if beam node is Open
-    const beamNode = SCHOOL_TO_NODE[school];
-    if (!this.nodeNetwork.isNodeOpen(beamNode)) return false;
+    const beamNode = this.nodeNetwork.getNodeForSchool(school);
+    if (!beamNode || !this.nodeNetwork.isNodeOpen(beamNode)) return false;
 
     // Begin charging
     const bonus = this.nodeNetwork.getPassiveBonus('beam_switch');

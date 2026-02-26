@@ -7,7 +7,6 @@ import { BALANCE } from '../data/BalanceConfig.js';
 import { GEM_SLOT_NODES } from '../combat/NodeNetwork.js';
 
 const SCHOOL_COLORS = { order: '#8000cc', chaos: '#ffe600', pure: '#ff4d00' };
-const ELEMENT_COLORS = { fire: '#ff4400', water: '#0088ff', earth: '#8b5e3c', air: '#eeeeff' };
 
 export class StartScreen {
   constructor(sceneManager, eventBus, inputManager, renderer) {
@@ -16,7 +15,6 @@ export class StartScreen {
     this.renderer = renderer;
 
     this.selectedSchool = null;
-    this.selectedElement = null;
 
     this.schoolButtons = {
       order: new Button(250, 230, 120, 40, 'Order', { color: '#3a0066', hoverColor: '#5500aa', fontSize: 16 }),
@@ -24,16 +22,9 @@ export class StartScreen {
       pure: new Button(570, 230, 120, 40, 'Pure', { color: '#662200', hoverColor: '#aa3300', fontSize: 16 }),
     };
 
-    this.elementButtons = {
-      fire: new Button(200, 330, 100, 36, 'Fire', { color: '#662200', hoverColor: '#aa3300', fontSize: 14 }),
-      water: new Button(320, 330, 100, 36, 'Water', { color: '#003366', hoverColor: '#0066aa', fontSize: 14 }),
-      earth: new Button(440, 330, 100, 36, 'Earth', { color: '#3a2a1a', hoverColor: '#6b4e3c', fontSize: 14 }),
-      air: new Button(560, 330, 100, 36, 'Air', { color: '#555566', hoverColor: '#8888aa', fontSize: 14 }),
-    };
-
-    this.beginButton = new Button(380, 400, 200, 50, 'Begin Run', { color: '#224422', hoverColor: '#33aa33', fontSize: 20 });
-    this.devDuelButton = new Button(380, 460, 200, 36, 'Dev Duel', { color: '#443322', hoverColor: '#886644', fontSize: 16 });
-    this.runeTestButton = new Button(600, 460, 120, 36, 'Rune Test', { color: '#222244', hoverColor: '#444488', fontSize: 13 });
+    this.beginButton = new Button(380, 340, 200, 50, 'Begin Run', { color: '#224422', hoverColor: '#33aa33', fontSize: 20 });
+    this.devDuelButton = new Button(380, 400, 200, 36, 'Dev Duel', { color: '#443322', hoverColor: '#886644', fontSize: 16 });
+    this.runeTestButton = new Button(600, 400, 120, 36, 'Rune Test', { color: '#222244', hoverColor: '#444488', fontSize: 13 });
 
     this.selectedDevTier = 1;
     this.tierButtons = {};
@@ -41,7 +32,7 @@ export class StartScreen {
     const tierHovers = ['#666633', '#663333', '#333366', '#336633', '#663366'];
     for (let t = 1; t <= 5; t++) {
       this.tierButtons[t] = new Button(
-        370 + (t - 1) * 45, 505, 38, 28, `T${t}`,
+        370 + (t - 1) * 45, 445, 38, 28, `T${t}`,
         { color: tierColors[t - 1], hoverColor: tierHovers[t - 1], fontSize: 13 }
       );
     }
@@ -49,7 +40,6 @@ export class StartScreen {
 
   enter() {
     this.selectedSchool = null;
-    this.selectedElement = null;
   }
 
   exit() {}
@@ -58,9 +48,8 @@ export class StartScreen {
     const mouse = this.input.getMousePos();
 
     for (const btn of Object.values(this.schoolButtons)) btn.updateHover(mouse.x, mouse.y);
-    for (const btn of Object.values(this.elementButtons)) btn.updateHover(mouse.x, mouse.y);
     this.beginButton.updateHover(mouse.x, mouse.y);
-    this.beginButton.disabled = !this.selectedSchool || !this.selectedElement;
+    this.beginButton.disabled = !this.selectedSchool;
     this.devDuelButton.updateHover(mouse.x, mouse.y);
     this.runeTestButton.updateHover(mouse.x, mouse.y);
     for (const btn of Object.values(this.tierButtons)) btn.updateHover(mouse.x, mouse.y);
@@ -71,13 +60,6 @@ export class StartScreen {
     for (const [school, btn] of Object.entries(this.schoolButtons)) {
       if (btn.isClicked(click.x, click.y)) {
         this.selectedSchool = school;
-        return;
-      }
-    }
-
-    for (const [element, btn] of Object.entries(this.elementButtons)) {
-      if (btn.isClicked(click.x, click.y)) {
-        this.selectedElement = element;
         return;
       }
     }
@@ -107,7 +89,7 @@ export class StartScreen {
 
   _startRun() {
     const runState = new RunState();
-    runState.startNewRun(this.selectedSchool, this.selectedElement);
+    runState.startNewRun(this.selectedSchool);
 
     // Starting gems are auto-slotted into shoulder nodes by startNewRun
 
@@ -121,10 +103,9 @@ export class StartScreen {
 
   _startDevDuel() {
     const school = this.selectedSchool || 'pure';
-    const element = this.selectedElement || 'fire';
 
     const runState = new RunState();
-    runState.startNewRun(school, element);
+    runState.startNewRun(school);
 
     // Add all spell gems for testing
     runState.addGem(createGem('fire', 'pure', 'spell_cooldown', BALANCE.passives.spell_cooldown_bonus, 'fireball'));
@@ -153,27 +134,16 @@ export class StartScreen {
       }
     }
 
-    r.drawText('Choose Element Attunement:', 480, 305, '#aaa', 14, 'center');
-    for (const [element, btn] of Object.entries(this.elementButtons)) {
-      btn.render(r);
-      if (this.selectedElement === element) {
-        r.drawRectOutline(btn.x - 2, btn.y - 2, btn.w + 4, btn.h + 4, '#ffffff', 2);
-      }
-    }
-
     // Selection summary
     if (this.selectedSchool) {
-      r.drawText(`School: ${this.selectedSchool}`, 480, 390, SCHOOL_COLORS[this.selectedSchool], 14, 'center');
-    }
-    if (this.selectedElement) {
-      r.drawText(`Element: ${this.selectedElement}`, 480, 410, ELEMENT_COLORS[this.selectedElement], 14, 'center');
+      r.drawText(`School: ${this.selectedSchool}`, 480, 320, SCHOOL_COLORS[this.selectedSchool], 14, 'center');
     }
 
     this.beginButton.render(r);
     this.devDuelButton.render(r);
     this.runeTestButton.render(r);
 
-    r.drawText('Enemy Tier:', 320, 519, '#666', 11, 'center');
+    r.drawText('Enemy Tier:', 320, 459, '#666', 11, 'center');
     for (const [tier, btn] of Object.entries(this.tierButtons)) {
       btn.render(r);
       if (this.selectedDevTier === Number(tier)) {

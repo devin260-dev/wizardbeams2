@@ -2,7 +2,6 @@ import { BALANCE } from './BalanceConfig.js';
 import { createGreyBolt, createShieldGem, generateRandomGem } from './GemDatabase.js';
 
 const SCHOOLS = ['pure', 'order', 'chaos'];
-const ELEMENTS = ['fire', 'water', 'earth', 'air'];
 const GEM_SLOT_NODES = ['crown', 'third_eye', 'throat', 'left_shoulder', 'right_shoulder', 'left_root', 'right_root'];
 
 function randomElement(arr) {
@@ -23,7 +22,6 @@ export function generateEnemy(tier) {
   if (!tierData) throw new Error(`Invalid enemy tier: ${tier}`);
 
   const school_attunement = randomElement(SCHOOLS);
-  const element_attunement = randomElement(ELEMENTS);
 
   // Determine unlocked beam types
   const otherSchools = SCHOOLS.filter(s => s !== school_attunement);
@@ -53,7 +51,6 @@ export function generateEnemy(tier) {
 
   return {
     school_attunement,
-    element_attunement,
     hp: tierData.hp,
     max_hp: tierData.hp,
     awareness_speed: tierData.awareness_speed,

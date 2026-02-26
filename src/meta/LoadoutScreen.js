@@ -1,6 +1,6 @@
 import { BALANCE } from '../data/BalanceConfig.js';
 import { Button } from '../rendering/UIComponents.js';
-import { NODE_TYPE, GEM_SLOT_NODES, SCHOOL_TO_NODE } from '../combat/NodeNetwork.js';
+import { NODE_TYPE, GEM_SLOT_NODES } from '../combat/NodeNetwork.js';
 import { getSpell } from '../data/SpellDatabase.js';
 
 // Node positions (player side, non-mirrored)
@@ -231,7 +231,7 @@ export class LoadoutScreen {
 
     // Enemy info
     if (this.enemyData) {
-      r.drawText(`Enemy: ${this.enemyData.school_attunement} / ${this.enemyData.element_attunement}`, 100, 430, '#cc8888', 11, 'center');
+      r.drawText(`Enemy: ${this.enemyData.school_attunement}`, 100, 430, '#cc8888', 11, 'center');
       r.drawText(`HP: ${this.enemyData.hp}  Tier ${this.enemyData.tier}${this.enemyData.is_boss ? ' (Boss)' : ''}`,
         100, 445, '#cc8888', 11, 'center');
     }

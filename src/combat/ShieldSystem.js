@@ -20,16 +20,18 @@ export class ShieldSystem {
     this.sideState.shield_state = 'unavailable';
     this.sideState.shield_up = false;
     this.sideState.shield_duration_timer = 0;
+    this.sideState.shield_school = null;
     this.eventBus.emit('shield_state_changed', { side: this.side, state: 'unavailable' });
   }
 
   // Called by SpellCaster when shield spell is cast
-  raise() {
+  raise(beamSchool = null) {
     const s = this.sideState;
     if (s.shield_state !== 'down') return false;
     s.shield_state = 'up';
     s.shield_up = true;
     s.shield_duration_timer = BALANCE.shield.duration;
+    s.shield_school = beamSchool || s.current_beam_school;
     this.eventBus.emit('shield_state_changed', { side: this.side, state: 'up' });
     return true;
   }
@@ -41,6 +43,7 @@ export class ShieldSystem {
     s.shield_state = 'down';
     s.shield_up = false;
     s.shield_duration_timer = 0;
+    s.shield_school = null;
     this.eventBus.emit('shield_state_changed', { side: this.side, state: 'down' });
   }
 
@@ -66,6 +69,7 @@ export class ShieldSystem {
       s.shield_duration_timer = 0;
       s.shield_state = 'down';
       s.shield_up = false;
+      s.shield_school = null;
       this.eventBus.emit('shield_state_changed', { side: this.side, state: 'down' });
     }
   }

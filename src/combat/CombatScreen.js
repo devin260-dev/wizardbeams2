@@ -4,7 +4,6 @@ import { NodeNetwork } from './NodeNetwork.js';
 import { NodeRenderer } from './NodeRenderer.js';
 import { BeamStruggle } from './BeamStruggle.js';
 import { BeamSwitcher } from './BeamSwitcher.js';
-import { ElementSystem } from './ElementSystem.js';
 import { StabilitySystem } from './StabilitySystem.js';
 import { ShieldSystem } from './ShieldSystem.js';
 import { RuneRecognizer } from './RuneRecognizer.js';
@@ -29,8 +28,6 @@ export class CombatScreen {
     this.beamStruggle = null;
     this.playerBeamSwitcher = null;
     this.enemyBeamSwitcher = null;
-    this.playerElement = null;
-    this.enemyElement = null;
     this.playerStability = null;
     this.enemyStability = null;
     this.playerShield = null;
@@ -94,10 +91,6 @@ export class CombatScreen {
     this.playerBeamSwitcher = new BeamSwitcher(this.combatState.player, this.eventBus, this.playerNetwork, 'player', this.playerEffects);
     this.enemyBeamSwitcher = new BeamSwitcher(this.combatState.enemy, this.eventBus, this.enemyNetwork, 'enemy', this.enemyEffects);
 
-    // Create element systems
-    this.playerElement = new ElementSystem(this.combatState.player, this.eventBus, this.playerNetwork, 'player');
-    this.enemyElement = new ElementSystem(this.combatState.enemy, this.eventBus, this.enemyNetwork, 'enemy');
-
     // Create stability systems
     this.playerStability = new StabilitySystem(this.combatState.player, this.eventBus, this.playerNetwork, 'player', this.combatState.enemy);
     this.enemyStability = new StabilitySystem(this.combatState.enemy, this.eventBus, this.enemyNetwork, 'enemy', this.combatState.player);
@@ -136,9 +129,9 @@ export class CombatScreen {
     this.beamStruggle = new BeamStruggle(
       this.combatState, this.eventBus,
       this.playerNetwork, this.enemyNetwork,
-      this.playerElement,
       this.playerEffects, this.enemyEffects
     );
+    this.beamStruggle.spellCaster = this.spellCaster;
 
     // Create combat HUD
     this.combatHUD = new CombatHUD(
@@ -227,8 +220,6 @@ export class CombatScreen {
 
     this.playerBeamSwitcher.update(dt);
     this.enemyBeamSwitcher.update(dt);
-    this.playerElement.update(dt);
-    this.enemyElement.update(dt);
     this.playerStability.update(dt);
     this.enemyStability.update(dt);
     this.playerShield.update(dt);
@@ -263,10 +254,10 @@ export class CombatScreen {
 
     // Shield effect (drawn behind nodes)
     if (this.combatState.player.shield_up) {
-      this.playerNodeRenderer.renderShieldEffect(this.playerNetwork, this.combatState.player.dominant_element);
+      this.playerNodeRenderer.renderShieldEffect(this.playerNetwork, this.combatState.player.shield_school);
     }
     if (this.combatState.enemy.shield_up) {
-      this.enemyNodeRenderer.renderShieldEffect(this.enemyNetwork, this.combatState.enemy.dominant_element);
+      this.enemyNodeRenderer.renderShieldEffect(this.enemyNetwork, this.combatState.enemy.shield_school);
     }
 
     // Node networks
@@ -341,13 +332,13 @@ export class CombatScreen {
     const staffTipY = y + BALANCE.wizard.staff_tip_offset.y;
     renderer.drawLine(staffBaseX, y + 20, staffTipX, staffTipY, '#8b6914', 2);
 
-    // Staff gem (element attunement color)
-    const gemColor = BALANCE.element.colors[sideState.element_attunement] || '#888';
+    // Staff gem (school attunement color)
+    const gemColor = BALANCE.school.colors[sideState.school_attunement]?.hex || '#888';
     renderer.drawCircle(staffTipX, staffTipY, 4, gemColor);
 
     // Shield visual
     if (sideState.shield_up) {
-      const shieldColor = BALANCE.element.colors[sideState.dominant_element] || '#88ccff';
+      const shieldColor = BALANCE.school.colors[sideState.shield_school]?.hex || '#88ccff';
       renderer.drawCircleOutline(x, y - 10, 25, shieldColor, 2);
       renderer.drawCircle(x, y - 10, 25, shieldColor, 0.15);
     }

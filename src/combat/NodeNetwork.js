@@ -89,6 +89,10 @@ export class NodeNetwork {
       for (const id of Object.keys(this.nodes)) {
         this.nodes[id].x = mirrorX - this.nodes[id].x;
       }
+      // Swap beam_school on hand nodes so they visually match the player layout
+      const leftSchool = this.nodes.left_hand.beam_school;
+      this.nodes.left_hand.beam_school = this.nodes.right_hand.beam_school;
+      this.nodes.right_hand.beam_school = leftSchool;
     }
 
     // Awareness
@@ -126,7 +130,7 @@ export class NodeNetwork {
     }
 
     // Set attuned beam node to Open
-    const attunedNode = SCHOOL_TO_NODE[attunement];
+    const attunedNode = this.getNodeForSchool(attunement);
     if (attunedNode) {
       this.nodes[attunedNode].state = NodeState.OPEN;
     }
@@ -157,6 +161,14 @@ export class NodeNetwork {
 
     // Calculate passive bonuses
     this._recalcPassives();
+  }
+
+  // Dynamic lookup: find the node ID whose beam_school matches
+  getNodeForSchool(school) {
+    for (const [id, node] of Object.entries(this.nodes)) {
+      if (node.beam_school === school) return id;
+    }
+    return null;
   }
 
   _recalcPassives() {
@@ -248,6 +260,17 @@ export class NodeNetwork {
     return this.nodes[nodeId]?.gem || null;
   }
 
+  // Returns the school identity of a node (for school-typed bolt interactions)
+  getNodeSchool(nodeId) {
+    const node = this.nodes[nodeId];
+    if (!node) return null;
+    // Beam type nodes have a fixed school
+    if (node.beam_school) return node.beam_school;
+    // Gem slot nodes inherit from slotted gem (neutral = no school interaction)
+    if (node.gem && node.gem.school && node.gem.school !== 'neutral') return node.gem.school;
+    return null;
+  }
+
   isNodeOpen(nodeId) {
     return this.nodes[nodeId]?.state === NodeState.OPEN;
   }
@@ -263,36 +286,6 @@ export class NodeNetwork {
       }
     }
     return mana;
-  }
-
-  // Element counts from Open nodes only + attunement
-  getElementCounts(attunementElement) {
-    const counts = { fire: 0, water: 0, earth: 0, air: 0 };
-    for (const node of Object.values(this.nodes)) {
-      if (node.state === NodeState.OPEN && node.gem && node.gem.element) {
-        counts[node.gem.element] = (counts[node.gem.element] || 0) + 1;
-      }
-    }
-    // Attunement bonus
-    if (attunementElement && counts[attunementElement] !== undefined) {
-      counts[attunementElement] += 1;
-    }
-    return counts;
-  }
-
-  getDominantElement(attunementElement) {
-    const counts = this.getElementCounts(attunementElement);
-    let maxCount = 0;
-    let dominant = attunementElement || '';
-    for (const [element, count] of Object.entries(counts)) {
-      if (count > maxCount) {
-        maxCount = count;
-        dominant = element;
-      } else if (count === maxCount && element === attunementElement) {
-        dominant = element; // ties go to attuned
-      }
-    }
-    return dominant;
   }
 
   // Check if all 10 mana-contributing nodes are Open

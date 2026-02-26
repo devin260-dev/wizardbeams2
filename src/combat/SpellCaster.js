@@ -31,6 +31,19 @@ export class SpellCaster {
     return Math.max(0, this.cooldowns[side][spellId] || 0);
   }
 
+  getCooldownManaDebuff(side) {
+    let debuff = 0;
+    for (const [spellId, remaining] of Object.entries(this.cooldowns[side])) {
+      if (remaining > 0) {
+        const spellCfg = BALANCE.spells[spellId];
+        if (spellCfg && spellCfg.cooldown_mana_cost) {
+          debuff += spellCfg.cooldown_mana_cost;
+        }
+      }
+    }
+    return debuff;
+  }
+
   castSpell(spellId, targetData, casterSide) {
     const spell = getSpell(spellId);
     if (!spell) return false;
@@ -60,13 +73,17 @@ export class SpellCaster {
     const startX = wizPos.x + (isPlayer ? staffOff.x : -staffOff.x);
     const startY = wizPos.y + staffOff.y;
 
+    // Get caster's current beam school for school-typed spells
+    const casterState = this.state[casterSide];
+    const casterBeamSchool = casterState.current_beam_school;
+
     // Handle each spell type
     switch (spellId) {
       case 'shield':
-        casterShield.raise();
+        casterShield.raise(casterBeamSchool);
         break;
       case 'grey_bolt':
-        this._castGreyBolt(spell, targetData, startX, startY, casterSide, defenderNetwork, defenderShield, defenderState, defenderSide);
+        this._castGreyBolt(spell, targetData, startX, startY, casterSide, defenderNetwork, defenderShield, defenderState, defenderSide, casterBeamSchool);
         break;
       case 'fireball':
         this._castFireball(spell, targetData, startX, startY, casterSide, defenderNetwork, defenderShield, defenderState, defenderSide);
@@ -86,11 +103,11 @@ export class SpellCaster {
     return true;
   }
 
-  _castGreyBolt(spell, targetData, startX, startY, casterSide, defenderNetwork, defenderShield, defenderState, defenderSide) {
+  _castGreyBolt(spell, targetData, startX, startY, casterSide, defenderNetwork, defenderShield, defenderState, defenderSide, casterBeamSchool = null) {
     const targetNode = defenderNetwork.getNode(targetData.nodeId);
     if (!targetNode) return;
     const proj = new Projectile(startX, startY, targetNode.x, targetNode.y,
-      spell.travel_speed, spell, targetData.nodeId, casterSide);
+      spell.travel_speed, spell, targetData.nodeId, casterSide, casterBeamSchool);
     this.projectiles.push(proj);
   }
 
@@ -132,17 +149,11 @@ export class SpellCaster {
 
     if (shieldUp) {
       // Shield mitigates to stability drain
-      const elementStab = ElementSystem.getSpellStabilityDamage(
-        spell.element, defenderState.dominant_element, true, false
-      );
       this.eventBus.emit('stability_drain', {
         side: defenderSide,
         amount: spell.stability_drain,
         duration: spell.stability_drain_duration,
       });
-      if (elementStab > 0) {
-        this.eventBus.emit('stability_damage', { side: defenderSide, amount: elementStab });
-      }
     } else {
       // No shield: disrupt crown, third_eye, throat
       for (const nodeId of spell.affected_nodes) {
@@ -150,13 +161,6 @@ export class SpellCaster {
         if (nodeState && nodeState !== NodeState.DAMAGED) {
           defenderNetwork.disruptNode(nodeId);
         }
-      }
-      // Element check
-      const elementStab = ElementSystem.getSpellStabilityDamage(
-        spell.element, defenderState.dominant_element, false, false
-      );
-      if (elementStab > 0) {
-        this.eventBus.emit('stability_damage', { side: defenderSide, amount: elementStab });
       }
     }
   }
@@ -166,17 +170,11 @@ export class SpellCaster {
 
     if (shieldUp) {
       // Shield mitigates to stability drain
-      const elementStab = ElementSystem.getSpellStabilityDamage(
-        spell.element, defenderState.dominant_element, true, false
-      );
       this.eventBus.emit('stability_drain', {
         side: defenderSide,
         amount: spell.stability_drain,
         duration: spell.stability_drain_duration,
       });
-      if (elementStab > 0) {
-        this.eventBus.emit('stability_damage', { side: defenderSide, amount: elementStab });
-      }
     } else {
       // Target node + flood path toward nearest root
       const targetNodeId = targetData.nodeId;
@@ -195,14 +193,6 @@ export class SpellCaster {
           defenderNetwork.disruptNode(nodeId);
         }
       }
-
-      // Element check
-      const elementStab = ElementSystem.getSpellStabilityDamage(
-        spell.element, defenderState.dominant_element, false, false
-      );
-      if (elementStab > 0) {
-        this.eventBus.emit('stability_damage', { side: defenderSide, amount: elementStab });
-      }
     }
   }
 
@@ -218,12 +208,6 @@ export class SpellCaster {
       if (defenderShield.canBlock(spell)) {
         // Shield blocks entire fireball
         defenderShield.absorbHit();
-        const elementStab = ElementSystem.getSpellStabilityDamage(
-          spell.element, defenderState.dominant_element, false, true
-        );
-        if (elementStab > 0) {
-          this.eventBus.emit('stability_damage', { side: defenderSide, amount: elementStab });
-        }
         return;
       }
 
@@ -242,43 +226,58 @@ export class SpellCaster {
         defenderState.hp -= spell.hp_damage;
       }
 
-      // Single element check for fireball
-      const elementStab = ElementSystem.getSpellStabilityDamage(
-        spell.element, defenderState.dominant_element, false, true
-      );
-      if (elementStab > 0) {
-        this.eventBus.emit('stability_damage', { side: defenderSide, amount: elementStab });
-      }
-
       this._checkHpDeath(defenderSide, defenderState);
       return;
     }
 
     // Single target projectile (Grey Bolt or Earth Barrage rock)
+    const boltSchool = projectile.casterSchool || null;
+    const si = BALANCE.school.school_interaction;
+
     if (defenderShield.canBlock(spell)) {
+      // Read shield school BEFORE absorbing (absorbHit doesn't clear it)
+      const shieldSchool = defenderState.shield_school || null;
       defenderShield.absorbHit();
-      // Element check after shield breaks (shield is now down)
-      const elementStab = ElementSystem.getSpellStabilityDamage(
-        spell.element, defenderState.dominant_element, false, true
-      );
-      if (elementStab > 0) {
-        this.eventBus.emit('stability_damage', { side: defenderSide, amount: elementStab });
+
+      // School interaction: bolt school vs shield school (stability loss for defender)
+      const schoolMatchup = ElementSystem.getSchoolMatchup(boltSchool, shieldSchool);
+      if (schoolMatchup === 'advantage') {
+        this.eventBus.emit('stability_damage', { side: defenderSide, amount: si.bolt_vs_shield_advantage });
+      } else if (schoolMatchup === 'same') {
+        this.eventBus.emit('stability_damage', { side: defenderSide, amount: si.bolt_vs_shield_same });
       }
+      // disadvantage / neutral = no extra stability damage
+
+      // Clear shield school after resolution
+      defenderState.shield_school = null;
       return;
     }
 
     // No shield - hit the node
     const targetNodeId = projectile.targetNodeId;
     if (targetNodeId) {
-      defenderNetwork.damageNode(targetNodeId);
-      defenderState.hp -= spell.hp_damage;
+      // School interaction: bolt school vs node school
+      const nodeSchool = defenderNetwork.getNodeSchool(targetNodeId);
+      const nodeMatchup = ElementSystem.getSchoolMatchup(boltSchool, nodeSchool);
 
-      // Element check
-      const elementStab = ElementSystem.getSpellStabilityDamage(
-        spell.element, defenderState.dominant_element, false, true
-      );
-      if (elementStab > 0) {
-        this.eventBus.emit('stability_damage', { side: defenderSide, amount: elementStab });
+      if (nodeMatchup === 'advantage') {
+        // Bolt beats node: double HP damage, node DAMAGED, stability loss
+        defenderNetwork.damageNode(targetNodeId);
+        defenderState.hp -= spell.hp_damage * si.bolt_vs_node_advantage_hp_mult;
+        this.eventBus.emit('stability_damage', { side: defenderSide, amount: si.bolt_vs_node_advantage });
+      } else if (nodeMatchup === 'same') {
+        // Same school: normal HP, node DAMAGED, stability loss
+        defenderNetwork.damageNode(targetNodeId);
+        defenderState.hp -= spell.hp_damage;
+        this.eventBus.emit('stability_damage', { side: defenderSide, amount: si.bolt_vs_node_same });
+      } else if (nodeMatchup === 'disadvantage') {
+        // Node beats bolt: no HP damage, node goes DORMANT (not DAMAGED)
+        defenderNetwork.disruptNode(targetNodeId);
+        // No HP damage, no stability damage
+      } else {
+        // Neutral: current behavior
+        defenderNetwork.damageNode(targetNodeId);
+        defenderState.hp -= spell.hp_damage;
       }
 
       this._checkHpDeath(defenderSide, defenderState);
@@ -296,13 +295,6 @@ export class SpellCaster {
     if (defenderShield.canBlock(spell) && !rock.shieldBlocked) {
       if (Math.random() < spell.hit_chance) {
         defenderShield.absorbHit();
-        // Element check after shield absorbs
-        const elementStab = ElementSystem.getSpellStabilityDamage(
-          spell.element, defenderState.dominant_element, false, true
-        );
-        if (elementStab > 0) {
-          this.eventBus.emit('stability_damage', { side: defenderSide, amount: elementStab });
-        }
         // Mark remaining rocks so they skip shield
         for (const r of this.pendingRocks) {
           if (r.casterSide === rock.casterSide) r.shieldBlocked = true;
@@ -315,14 +307,6 @@ export class SpellCaster {
     if (Math.random() < spell.hit_chance) {
       defenderNetwork.damageNode(rock.targetNodeId);
       defenderState.hp -= spell.hp_damage;
-
-      // Element check per rock hit
-      const elementStab = ElementSystem.getSpellStabilityDamage(
-        spell.element, defenderState.dominant_element, defenderShield.sideState.shield_up, true
-      );
-      if (elementStab > 0) {
-        this.eventBus.emit('stability_damage', { side: defenderSide, amount: elementStab });
-      }
 
       this._checkHpDeath(defenderSide, defenderState);
     }

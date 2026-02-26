@@ -139,10 +139,10 @@ export class NodeRenderer {
     }
   }
 
-  renderShieldEffect(nodeNetwork, dominantElement) {
+  renderShieldEffect(nodeNetwork, shieldSchool) {
     const r = this.renderer;
     const bounds = nodeNetwork.getBounds();
-    const color = BALANCE.element.colors[dominantElement] || '#88ccff';
+    const color = (shieldSchool && BALANCE.school.colors[shieldSchool]) ? BALANCE.school.colors[shieldSchool].hex : '#88ccff';
     const pulse = 0.5 + 0.5 * Math.sin(this.pulseTimer * 3);
 
     // Expand bounds slightly so the shield sits outside the nodes
