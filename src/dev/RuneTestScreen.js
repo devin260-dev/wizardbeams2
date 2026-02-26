@@ -31,6 +31,10 @@ export class RuneTestScreen {
     this.lastFizzle = false;
     this.history = [];         // [{name, score, pointCount}]
     this.frozenTrail = [];     // last completed drawing (kept on screen)
+
+    // Lazy-mouse stabilizer state
+    this._brushX = 0;
+    this._brushY = 0;
   }
 
   enter() {
@@ -69,6 +73,8 @@ export class RuneTestScreen {
     // Drawing
     if (justPressed && !this._isOverButton(mouse.x, mouse.y)) {
       this.drawing = true;
+      this._brushX = mouse.x;
+      this._brushY = mouse.y;
       this.points = [{ x: mouse.x, y: mouse.y }];
       this.lastResult = null;
       this.lastFizzle = false;
@@ -76,13 +82,32 @@ export class RuneTestScreen {
     }
 
     if (this.drawing && isDown) {
-      this.points.push({ x: mouse.x, y: mouse.y });
+      this._addStabilizedPoint(mouse.x, mouse.y);
     }
 
     if (this.drawing && !isDown) {
       this.drawing = false;
       this.frozenTrail = [...this.points];
       this._recognize();
+    }
+  }
+
+  _addStabilizedPoint(x, y) {
+    const stringLen = BALANCE.rune.stabilizer_string_length;
+    if (stringLen <= 0) {
+      this.points.push({ x, y });
+      return;
+    }
+
+    const dx = x - this._brushX;
+    const dy = y - this._brushY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist > stringLen) {
+      const pull = dist - stringLen;
+      this._brushX += (dx / dist) * pull;
+      this._brushY += (dy / dist) * pull;
+      this.points.push({ x: this._brushX, y: this._brushY });
     }
   }
 
@@ -220,6 +245,14 @@ export class RuneTestScreen {
     // Active drawing trail
     if (this.drawing && this.points.length >= 2) {
       r.drawPolyline(this.points, BALANCE.rune.trail_color, BALANCE.rune.trail_width);
+
+      // Stabilizer string visual
+      if (BALANCE.rune.stabilizer_string_length > 0) {
+        const mouse = this.input.getMousePos();
+        r.drawLine(this._brushX, this._brushY, mouse.x, mouse.y, 'rgba(255,204,0,0.25)', 1);
+        r.drawCircle(this._brushX, this._brushY, 2, '#ffcc00');
+      }
+
       // Point count
       r.drawText(`${this.points.length} pts`, 480, 510, '#666', 10, 'center');
     }
