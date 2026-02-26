@@ -268,27 +268,18 @@ export class RuneRecognizer {
     }
     templates.push({ name: 'grey_bolt', points: bolt });
 
-    // Shield — square (multiple starting corners for robust matching)
-    // Dense interpolation (16 per side) to clearly distinguish from triangle
-    const sqCorners = [
-      [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }],  // top-left start
-      [{ x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }, { x: 0, y: 0 }],  // top-right start
-      [{ x: 100, y: 100 }, { x: 0, y: 100 }, { x: 0, y: 0 }, { x: 100, y: 0 }],  // bottom-right start
-      [{ x: 0, y: 100 }, { x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }],  // bottom-left start
-    ];
-    for (const corners of sqCorners) {
-      const sq = [];
-      const verts = [...corners, corners[0]]; // close the shape
-      for (let i = 0; i < verts.length - 1; i++) {
-        for (let t = 0; t < 16; t++) {
-          const frac = t / 16;
-          sq.push({
-            x: verts[i].x + (verts[i + 1].x - verts[i].x) * frac,
-            y: verts[i].y + (verts[i + 1].y - verts[i].y) * frac,
-          });
-        }
+    // Shield — circle (multiple starting angles for robust matching)
+    const circleStarts = [0, Math.PI / 2, Math.PI, Math.PI * 1.5]; // 0°, 90°, 180°, 270°
+    for (const startAngle of circleStarts) {
+      const circle = [];
+      for (let i = 0; i < 40; i++) {
+        const angle = startAngle + (i / 40) * Math.PI * 2;
+        circle.push({
+          x: 50 + 50 * Math.cos(angle),
+          y: 50 + 50 * Math.sin(angle),
+        });
       }
-      templates.push({ name: 'shield', points: sq });
+      templates.push({ name: 'shield', points: circle });
     }
 
     // Fireball — triangle (clockwise from top)
