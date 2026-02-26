@@ -268,18 +268,23 @@ export class RuneRecognizer {
     }
     templates.push({ name: 'grey_bolt', points: bolt });
 
-    // Shield — circle (multiple starting angles for robust matching)
-    const circleStarts = [0, Math.PI / 2, Math.PI, Math.PI * 1.5]; // 0°, 90°, 180°, 270°
-    for (const startAngle of circleStarts) {
-      const circle = [];
-      for (let i = 0; i < 40; i++) {
-        const angle = startAngle + (i / 40) * Math.PI * 2;
-        circle.push({
+    // Shield — D-arc (half-circle, no spine — curved part of a "D")
+    // Multiple orientations: right-facing arc, top-start, bottom-start
+    const arcVariants = [
+      { startAngle: -Math.PI / 2, sweep: Math.PI },   // right-facing arc, top to bottom
+      { startAngle: Math.PI / 2, sweep: -Math.PI },    // right-facing arc, bottom to top
+    ];
+    for (const { startAngle, sweep } of arcVariants) {
+      const arc = [];
+      for (let i = 0; i < 30; i++) {
+        const t = i / 29;
+        const angle = startAngle + sweep * t;
+        arc.push({
           x: 50 + 50 * Math.cos(angle),
           y: 50 + 50 * Math.sin(angle),
         });
       }
-      templates.push({ name: 'shield', points: circle });
+      templates.push({ name: 'shield', points: arc });
     }
 
     // Fireball — triangle (clockwise from top)
